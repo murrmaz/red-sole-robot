@@ -19,8 +19,9 @@
 </head>
 <body>
     <nav>
-        <a href="{% url 'moderation:queue_list' %}">Review Queue</a>
-        <a href="{% url 'moderation:stats' %}">Stats</a>
+        <a href="{% url 'home' %}">Dashboard</a>
+        <a href="{% url 'actions:queue_list' %}">Review Queue</a>
+        <a href="{% url 'actions:stats' %}">Stats</a>
         {% if user.is_authenticated %}
             <span>{{ user.username }}</span>
             <form class="inline" method="post" action="{% url 'logout' %}">

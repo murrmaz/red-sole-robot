@@ -1,0 +1,23 @@
+{% extends "actions/base.html" %}
+{% block title %}Dashboard — Red Sole Robot{% endblock %}
+{% block content %}
+    <h1>Dashboard</h1>
+
+    <h2>Ingest queue</h2>
+    <div class="stat"><strong>{{ raw_comment_count }} / {{ raw_comment_cap }}</strong> comments queued</div>
+    <div class="stat"><strong>{{ raw_post_count }} / {{ raw_post_cap }}</strong> posts queued</div>
+
+    <h2>Evaluation</h2>
+    <div class="stat"><strong>{{ total_processed }}</strong> processed (all time)</div>
+    <div class="stat"><strong>{{ processed_last_24h }}</strong> processed (24h)</div>
+    <div class="stat"><strong>{{ flagged_last_24h }}</strong> flagged (24h)</div>
+
+    <h2>Needs attention</h2>
+    <div class="stat"><strong>{{ unreviewed_flagged }}</strong> unreviewed flagged items</div>
+
+    <p>
+        <a href="{% url 'actions:queue_list' %}">Review queue</a>
+        &middot;
+        <a href="{% url 'actions:stats' %}">Full stats</a>
+    </p>
+{% endblock %}

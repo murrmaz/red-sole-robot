@@ -6,8 +6,8 @@ behavior (dedup, field mapping, enqueueing inference) stays in one place.
 
 from datetime import datetime, timezone
 
+from evaluate.tasks import evaluate_item
 from ingest.models import RawComment, RawPost
-from moderation.tasks import classify_item
 
 
 def _created_utc(reddit_obj):
@@ -30,7 +30,7 @@ def save_comment(comment):
         },
     )
     if created:
-        classify_item.enqueue("comment", raw.id)
+        evaluate_item.enqueue("comment", raw.id)
     return raw, created
 
 
@@ -50,5 +50,5 @@ def save_post(submission):
         },
     )
     if created:
-        classify_item.enqueue("post", raw.id)
+        evaluate_item.enqueue("post", raw.id)
     return raw, created

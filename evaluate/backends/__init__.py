@@ -5,7 +5,7 @@ from .base import InferenceBackend, InferenceResult
 __all__ = ["InferenceBackend", "InferenceResult", "get_inference_backend"]
 
 _BACKENDS = {
-    "openai_compatible": "moderation.inference.openai_compatible.OpenAICompatibleBackend",
+    "openai_compatible": "evaluate.backends.openai_compatible.OpenAICompatibleBackend",
 }
 
 

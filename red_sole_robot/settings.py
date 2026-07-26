@@ -46,7 +46,9 @@ INSTALLED_APPS = [
     'django_tasks',
     'django_tasks_db',
     'ingest',
-    'moderation',
+    'evaluate',
+    'actions',
+    'dashboard',
 ]
 
 MIDDLEWARE = [

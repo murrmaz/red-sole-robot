@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.db import models
 
 
@@ -12,19 +11,14 @@ class Verdict(models.TextChoices):
     FLAGGED = "flagged", "Flagged"
 
 
-class ReviewStatus(models.TextChoices):
-    UNREVIEWED = "unreviewed", "Unreviewed"
-    ACTIONED = "actioned", "Actioned"
-    DISMISSED = "dismissed", "Dismissed"
-
-
-class ModerationRecord(models.Model):
-    """The permanent record of an AI inference pass over one Reddit item.
+class EvaluationRecord(models.Model):
+    """The permanent record of one evaluation pass over a Reddit item.
 
     Deliberately holds only metadata (author, permalink, ids, timestamps) and
-    data we generated ourselves (verdict, category, confidence, rationale,
-    review state) — never the original comment/post body, which must not be
-    retained once scored.
+    data we generated ourselves (verdict, category, confidence, rationale) —
+    never the original comment/post body, which must not be retained once
+    scored. Says nothing about what happens as a *result* of the verdict —
+    that's the `actions` app's concern.
     """
 
     item_type = models.CharField(max_length=10, choices=ItemType.choices)
@@ -41,20 +35,8 @@ class ModerationRecord(models.Model):
     rationale = models.TextField(blank=True)
     model_name = models.CharField(max_length=200, blank=True)
 
-    reddit_report_submitted = models.BooleanField(default=False)
-    reddit_report_submitted_at = models.DateTimeField(null=True, blank=True)
-    reddit_report_error = models.CharField(max_length=500, blank=True)
-
-    review_status = models.CharField(
-        max_length=10, choices=ReviewStatus.choices, default=ReviewStatus.UNREVIEWED
-    )
-    reviewed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
-    )
-    reviewed_at = models.DateTimeField(null=True, blank=True)
-
     class Meta:
         ordering = ["-processed_at"]
 
     def __str__(self):
-        return f"ModerationRecord({self.reddit_fullname}, {self.verdict})"
+        return f"EvaluationRecord({self.reddit_fullname}, {self.verdict})"

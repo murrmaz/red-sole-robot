@@ -1,4 +1,4 @@
-{% extends "moderation/base.html" %}
+{% extends "actions/base.html" %}
 {% block title %}Review Queue — Red Sole Robot{% endblock %}
 {% block content %}
     <h1>Review Queue</h1>
@@ -41,16 +41,16 @@
         <tbody>
             {% for record in page_obj %}
                 <tr>
-                    <td>{{ record.get_item_type_display }}</td>
-                    <td>{{ record.subreddit }}</td>
-                    <td>{{ record.author }}</td>
-                    <td><span class="badge badge-{{ record.verdict }}">{{ record.get_verdict_display }}</span></td>
-                    <td>{{ record.category }}</td>
-                    <td>{{ record.confidence|default_if_none:"—" }}</td>
-                    <td>{% if record.reddit_report_submitted %}Yes{% elif record.reddit_report_error %}Failed{% else %}—{% endif %}</td>
+                    <td>{{ record.evaluation_record.get_item_type_display }}</td>
+                    <td>{{ record.evaluation_record.subreddit }}</td>
+                    <td>{{ record.evaluation_record.author }}</td>
+                    <td><span class="badge badge-{{ record.evaluation_record.verdict }}">{{ record.evaluation_record.get_verdict_display }}</span></td>
+                    <td>{{ record.evaluation_record.category }}</td>
+                    <td>{{ record.evaluation_record.confidence|default_if_none:"—" }}</td>
+                    <td>{% if record.status == "submitted" %}Yes{% elif record.status == "failed" %}Failed{% else %}—{% endif %}</td>
                     <td>{{ record.get_review_status_display }}</td>
-                    <td>{{ record.processed_at }}</td>
-                    <td><a href="{% url 'moderation:record_detail' record.pk %}">View</a></td>
+                    <td>{{ record.evaluation_record.processed_at }}</td>
+                    <td><a href="{% url 'actions:record_detail' record.pk %}">View</a></td>
                 </tr>
             {% empty %}
                 <tr><td colspan="10">No records match these filters.</td></tr>

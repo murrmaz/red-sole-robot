@@ -5,7 +5,7 @@ from ingest.ingestion import save_comment, save_post
 from ingest.models import RawComment, RawPost
 from ingest.reddit_client import get_subreddit
 from ingest.trimming import trim_to_cap
-from moderation.models import ModerationRecord
+from evaluate.models import EvaluationRecord
 
 
 class Command(BaseCommand):
@@ -19,7 +19,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         subreddit = get_subreddit()
         already_scored = set(
-            ModerationRecord.objects.values_list("reddit_fullname", flat=True)
+            EvaluationRecord.objects.values_list("reddit_fullname", flat=True)
         )
 
         comments_added = 0
