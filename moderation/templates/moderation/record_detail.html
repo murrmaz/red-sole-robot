@@ -1,0 +1,39 @@
+{% extends "moderation/base.html" %}
+{% block title %}Record #{{ record.pk }} — Red Sole Robot{% endblock %}
+{% block content %}
+    <p><a href="{% url 'moderation:queue_list' %}">&larr; Back to queue</a></p>
+    <h1>{{ record.get_item_type_display }} by {{ record.author }}</h1>
+
+    <table>
+        <tr><th>Verdict</th><td><span class="badge badge-{{ record.verdict }}">{{ record.get_verdict_display }}</span></td></tr>
+        <tr><th>Category</th><td>{{ record.category|default:"—" }}</td></tr>
+        <tr><th>Confidence</th><td>{{ record.confidence|default_if_none:"—" }}</td></tr>
+        <tr><th>Rationale</th><td>{{ record.rationale|default:"—" }}</td></tr>
+        <tr><th>Model</th><td>{{ record.model_name|default:"—" }}</td></tr>
+        <tr><th>Subreddit</th><td>{{ record.subreddit }}</td></tr>
+        <tr><th>Permalink</th><td><a href="https://reddit.com{{ record.permalink }}" target="_blank" rel="noopener">{{ record.permalink }}</a></td></tr>
+        <tr><th>Content created</th><td>{{ record.content_created_utc }}</td></tr>
+        <tr><th>Processed at</th><td>{{ record.processed_at }}</td></tr>
+        <tr><th>Reddit report</th>
+            <td>
+                {% if record.reddit_report_submitted %}
+                    Submitted at {{ record.reddit_report_submitted_at }}
+                {% elif record.reddit_report_error %}
+                    Failed: {{ record.reddit_report_error }}
+                {% else %}
+                    Not applicable
+                {% endif %}
+            </td>
+        </tr>
+        <tr><th>Review status</th><td>{{ record.get_review_status_display }}</td></tr>
+        {% if record.reviewed_by %}
+            <tr><th>Reviewed by</th><td>{{ record.reviewed_by }} at {{ record.reviewed_at }}</td></tr>
+        {% endif %}
+    </table>
+
+    <form method="post" action="{% url 'moderation:review_record' record.pk %}">
+        {% csrf_token %}
+        <button type="submit" name="action" value="actioned">Mark actioned</button>
+        <button type="submit" name="action" value="dismissed">Dismiss</button>
+    </form>
+{% endblock %}

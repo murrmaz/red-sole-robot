@@ -1,0 +1,9 @@
+{% extends "moderation/base.html" %}
+{% block title %}Stats — Red Sole Robot{% endblock %}
+{% block content %}
+    <h1>Last 7 days</h1>
+    <div class="stat"><strong>{{ total_processed }}</strong> processed</div>
+    <div class="stat"><strong>{{ total_flagged }}</strong> flagged</div>
+    <div class="stat"><strong>{{ total_unreviewed }}</strong> unreviewed flags</div>
+    <div class="stat"><strong>{{ report_failures }}</strong> report failures</div>
+{% endblock %}

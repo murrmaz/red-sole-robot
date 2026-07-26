@@ -43,6 +43,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_tasks',
+    'django_tasks_db',
+    'ingest',
+    'moderation',
 ]
 
 MIDDLEWARE = [
@@ -77,17 +81,61 @@ WSGI_APPLICATION = 'red_sole_robot.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+#
+# No local Postgres is set up yet, so this defaults to SQLite for
+# development. Set DATABASE_URL (e.g. postgres://user:pass@host:port/name) to
+# switch to Postgres later without touching this file.
 
 DATABASES = {
+    'default': env.db('DATABASE_URL', default=f'sqlite:///{BASE_DIR / "db.sqlite3"}')
+}
+
+
+# Django Tasks — used to run AI inference as soon as an item is ingested,
+# instead of on a polling interval. django-tasks-db provides the persistent,
+# ORM-backed queue and the `db_worker` management command.
+# https://docs.djangoproject.com/en/6.0/topics/tasks/
+
+TASKS = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME'),
-        'USER': env('DB_USER'),
-        'PASSWORD': env('DB_PASSWORD'),
-        'HOST': env('DB_HOST', default='localhost'),
-        'PORT': env('DB_PORT', default='5432')
+        'BACKEND': 'django_tasks_db.DatabaseBackend',
     }
 }
+
+
+# Reddit (PRAW) ingestion
+
+REDDIT_CLIENT_ID = env('REDDIT_CLIENT_ID', default='')
+REDDIT_CLIENT_SECRET = env('REDDIT_CLIENT_SECRET', default='')
+REDDIT_USERNAME = env('REDDIT_USERNAME', default='')
+REDDIT_PASSWORD = env('REDDIT_PASSWORD', default='')
+REDDIT_USER_AGENT = env(
+    'REDDIT_USER_AGENT', default='red_sole_robot moderation assistant'
+)
+REDDIT_SUBREDDIT = env('REDDIT_SUBREDDIT', default='LouboutinLife')
+
+# Raw queue caps — oldest unprocessed items beyond these are silently
+# dropped by `reconcile` if inference falls behind.
+QUEUE_COMMENT_CAP = env.int('QUEUE_COMMENT_CAP', default=5000)
+QUEUE_POST_CAP = env.int('QUEUE_POST_CAP', default=100)
+
+# How many recent comments/posts `reconcile` fetches from Reddit each run to
+# catch anything the stream missed.
+RECONCILE_COMMENT_FETCH_LIMIT = env.int(
+    'RECONCILE_COMMENT_FETCH_LIMIT', default=1000
+)
+RECONCILE_POST_FETCH_LIMIT = env.int('RECONCILE_POST_FETCH_LIMIT', default=100)
+
+
+# AI inference backend
+#
+# Not yet decided between Ollama / llama.cpp server / vLLM — all three can
+# speak the OpenAI-compatible chat completions API, so INFERENCE_BASE_URL and
+# INFERENCE_MODEL are the only settings that should need to change between
+# them.
+INFERENCE_BACKEND = env('INFERENCE_BACKEND', default='openai_compatible')
+INFERENCE_BASE_URL = env('INFERENCE_BASE_URL', default='http://localhost:11434')
+INFERENCE_MODEL = env('INFERENCE_MODEL', default='')
 
 
 # Password validation

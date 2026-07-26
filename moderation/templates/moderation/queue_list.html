@@ -1,0 +1,66 @@
+{% extends "moderation/base.html" %}
+{% block title %}Review Queue — Red Sole Robot{% endblock %}
+{% block content %}
+    <h1>Review Queue</h1>
+
+    <form method="get">
+        <label>Verdict
+            <select name="verdict">
+                <option value="">Any</option>
+                {% for value, label in verdict_choices %}
+                    <option value="{{ value }}" {% if value == verdict %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Review status
+            <select name="review_status">
+                <option value="">Any</option>
+                {% for value, label in review_status_choices %}
+                    <option value="{{ value }}" {% if value == review_status %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Category <input type="text" name="category" value="{{ category|default:'' }}"></label>
+        <button type="submit">Filter</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Subreddit</th>
+                <th>Author</th>
+                <th>Verdict</th>
+                <th>Category</th>
+                <th>Confidence</th>
+                <th>Reported</th>
+                <th>Review status</th>
+                <th>Processed at</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in page_obj %}
+                <tr>
+                    <td>{{ record.get_item_type_display }}</td>
+                    <td>{{ record.subreddit }}</td>
+                    <td>{{ record.author }}</td>
+                    <td><span class="badge badge-{{ record.verdict }}">{{ record.get_verdict_display }}</span></td>
+                    <td>{{ record.category }}</td>
+                    <td>{{ record.confidence|default_if_none:"—" }}</td>
+                    <td>{% if record.reddit_report_submitted %}Yes{% elif record.reddit_report_error %}Failed{% else %}—{% endif %}</td>
+                    <td>{{ record.get_review_status_display }}</td>
+                    <td>{{ record.processed_at }}</td>
+                    <td><a href="{% url 'moderation:record_detail' record.pk %}">View</a></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="10">No records match these filters.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p>
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </p>
+{% endblock %}
