@@ -1,9 +1,31 @@
 {% extends "actions/base.html" %}
 {% block title %}Stats — Red Sole Robot{% endblock %}
 {% block content %}
-    <h1>Last 7 days</h1>
-    <div class="stat"><strong>{{ total_processed }}</strong> processed</div>
-    <div class="stat"><strong>{{ total_flagged }}</strong> flagged</div>
-    <div class="stat"><strong>{{ total_unreviewed }}</strong> unreviewed flags</div>
-    <div class="stat"><strong>{{ report_failures }}</strong> report failures</div>
+    <h1 class="title">Last 7 days</h1>
+    <div class="level">
+        <div class="level-item has-text-centered">
+            <div>
+                <p class="heading">Processed</p>
+                <p class="title">{{ total_processed }}</p>
+            </div>
+        </div>
+        <div class="level-item has-text-centered">
+            <div>
+                <p class="heading">Flagged</p>
+                <p class="title">{{ total_flagged }}</p>
+            </div>
+        </div>
+        <div class="level-item has-text-centered">
+            <div>
+                <p class="heading">Unreviewed flags</p>
+                <p class="title">{{ total_unreviewed }}</p>
+            </div>
+        </div>
+        <div class="level-item has-text-centered">
+            <div>
+                <p class="heading">Report failures</p>
+                <p class="title">{{ report_failures }}</p>
+            </div>
+        </div>
+    </div>
 {% endblock %}

@@ -1,23 +1,58 @@
 {% extends "actions/base.html" %}
 {% block title %}Dashboard — Red Sole Robot{% endblock %}
 {% block content %}
-    <h1>Dashboard</h1>
+    <h1 class="title">Dashboard</h1>
 
-    <h2>Ingest queue</h2>
-    <div class="stat"><strong>{{ raw_comment_count }} / {{ raw_comment_cap }}</strong> comments queued</div>
-    <div class="stat"><strong>{{ raw_post_count }} / {{ raw_post_cap }}</strong> posts queued</div>
+    <h2 class="subtitle">Ingest queue</h2>
+    <div class="level">
+        <div class="level-item has-text-centered">
+            <div>
+                <p class="heading">Comments queued</p>
+                <p class="title">{{ raw_comment_count }} / {{ raw_comment_cap }}</p>
+            </div>
+        </div>
+        <div class="level-item has-text-centered">
+            <div>
+                <p class="heading">Posts queued</p>
+                <p class="title">{{ raw_post_count }} / {{ raw_post_cap }}</p>
+            </div>
+        </div>
+    </div>
 
-    <h2>Evaluation</h2>
-    <div class="stat"><strong>{{ total_processed }}</strong> processed (all time)</div>
-    <div class="stat"><strong>{{ processed_last_24h }}</strong> processed (24h)</div>
-    <div class="stat"><strong>{{ flagged_last_24h }}</strong> flagged (24h)</div>
+    <h2 class="subtitle">Evaluation</h2>
+    <div class="level">
+        <div class="level-item has-text-centered">
+            <div>
+                <p class="heading">Processed (all time)</p>
+                <p class="title">{{ total_processed }}</p>
+            </div>
+        </div>
+        <div class="level-item has-text-centered">
+            <div>
+                <p class="heading">Processed (24h)</p>
+                <p class="title">{{ processed_last_24h }}</p>
+            </div>
+        </div>
+        <div class="level-item has-text-centered">
+            <div>
+                <p class="heading">Flagged (24h)</p>
+                <p class="title">{{ flagged_last_24h }}</p>
+            </div>
+        </div>
+    </div>
 
-    <h2>Needs attention</h2>
-    <div class="stat"><strong>{{ unreviewed_flagged }}</strong> unreviewed flagged items</div>
+    <h2 class="subtitle">Needs attention</h2>
+    <div class="level">
+        <div class="level-item has-text-centered">
+            <div>
+                <p class="heading">Unreviewed flagged items</p>
+                <p class="title">{{ unreviewed_flagged }}</p>
+            </div>
+        </div>
+    </div>
 
-    <p>
-        <a href="{% url 'actions:queue_list' %}">Review queue</a>
-        &middot;
-        <a href="{% url 'actions:stats' %}">Full stats</a>
-    </p>
+    <div class="buttons">
+        <a class="button is-link" href="{% url 'actions:queue_list' %}">Review queue</a>
+        <a class="button" href="{% url 'actions:stats' %}">Full stats</a>
+    </div>
 {% endblock %}

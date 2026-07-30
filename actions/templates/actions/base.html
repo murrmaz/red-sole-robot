@@ -1,35 +1,46 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Red Sole Robot{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/bulma.min.css' %}">
     <style>
-        body { font-family: system-ui, sans-serif; margin: 2rem; color: #222; }
-        nav { margin-bottom: 1.5rem; }
-        nav a { margin-right: 1rem; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; }
         .badge { padding: 0.1rem 0.5rem; border-radius: 0.3rem; font-size: 0.85em; }
         .badge-flagged { background: #fdd; }
         .badge-clear { background: #dfd; }
-        .stat { display: inline-block; margin-right: 2rem; }
-        .stat strong { display: block; font-size: 1.5rem; }
         form.inline { display: inline; }
     </style>
 </head>
 <body>
-    <nav>
-        <a href="{% url 'home' %}">Dashboard</a>
-        <a href="{% url 'actions:queue_list' %}">Review Queue</a>
-        <a href="{% url 'actions:stats' %}">Stats</a>
-        {% if user.is_authenticated %}
-            <span>{{ user.username }}</span>
-            <form class="inline" method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button type="submit">Log out</button>
-            </form>
-        {% endif %}
+    <nav class="navbar" role="navigation" aria-label="main navigation">
+        <div class="navbar-brand">
+            <a class="navbar-item" href="{% url 'home' %}">Red Sole Robot</a>
+        </div>
+        <div class="navbar-menu">
+            <div class="navbar-start">
+                <a class="navbar-item" href="{% url 'home' %}">Dashboard</a>
+                <a class="navbar-item" href="{% url 'actions:queue_list' %}">Review Queue</a>
+                <a class="navbar-item" href="{% url 'actions:stats' %}">Stats</a>
+            </div>
+            {% if user.is_authenticated %}
+            <div class="navbar-end">
+                <div class="navbar-item">
+                    <span class="mr-3">{{ user.username }}</span>
+                    <form class="inline" method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="button is-small">Log out</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
     </nav>
-    {% block content %}{% endblock %}
+    <section class="section">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </section>
 </body>
 </html>

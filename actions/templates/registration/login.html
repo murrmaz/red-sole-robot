@@ -1,16 +1,24 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Log in — Red Sole Robot</title>
-    <style>body { font-family: system-ui, sans-serif; margin: 4rem auto; max-width: 320px; }</style>
+    <link rel="stylesheet" href="{% static 'css/bulma.min.css' %}">
 </head>
 <body>
-    <h1>Log in</h1>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Log in</button>
-    </form>
+    <section class="section">
+        <div class="container" style="max-width: 360px;">
+            <h1 class="title">Log in</h1>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <div class="control">
+                    <button type="submit" class="button is-link">Log in</button>
+                </div>
+            </form>
+        </div>
+    </section>
 </body>
 </html>

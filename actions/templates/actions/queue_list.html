@@ -3,28 +3,43 @@
 {% block content %}
     <h1>Review Queue</h1>
 
-    <form method="get">
-        <label>Verdict
-            <select name="verdict">
-                <option value="">Any</option>
-                {% for value, label in verdict_choices %}
-                    <option value="{{ value }}" {% if value == verdict %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Review status
-            <select name="review_status">
-                <option value="">Any</option>
-                {% for value, label in review_status_choices %}
-                    <option value="{{ value }}" {% if value == review_status %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Category <input type="text" name="category" value="{{ category|default:'' }}"></label>
-        <button type="submit">Filter</button>
+    <form method="get" class="field is-grouped is-grouped-multiline">
+        <div class="control">
+            <label class="label">Verdict
+                <div class="select">
+                    <select name="verdict">
+                        <option value="">Any</option>
+                        {% for value, label in verdict_choices %}
+                            <option value="{{ value }}" {% if value == verdict %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </label>
+        </div>
+        <div class="control">
+            <label class="label">Review status
+                <div class="select">
+                    <select name="review_status">
+                        <option value="">Any</option>
+                        {% for value, label in review_status_choices %}
+                            <option value="{{ value }}" {% if value == review_status %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </label>
+        </div>
+        <div class="control">
+            <label class="label">Category
+                <input class="input" type="text" name="category" value="{{ category|default:'' }}">
+            </label>
+        </div>
+        <div class="control">
+            <label class="label">&nbsp;</label>
+            <button type="submit" class="button is-link">Filter</button>
+        </div>
     </form>
 
-    <table>
+    <table class="table is-fullwidth is-striped is-hoverable">
         <thead>
             <tr>
                 <th>Type</th>

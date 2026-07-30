@@ -176,3 +176,4 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = '/var/www/red_sole_robot/static/'
+STATICFILES_DIRS = [BASE_DIR / 'red_sole_robot' / 'static']

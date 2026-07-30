@@ -4,7 +4,7 @@
     <p><a href="{% url 'actions:queue_list' %}">&larr; Back to queue</a></p>
     <h1>{{ record.evaluation_record.get_item_type_display }} by {{ record.evaluation_record.author }}</h1>
 
-    <table>
+    <table class="table is-fullwidth">
         <tr><th>Verdict</th><td><span class="badge badge-{{ record.evaluation_record.verdict }}">{{ record.evaluation_record.get_verdict_display }}</span></td></tr>
         <tr><th>Category</th><td>{{ record.evaluation_record.category|default:"—" }}</td></tr>
         <tr><th>Confidence</th><td>{{ record.evaluation_record.confidence|default_if_none:"—" }}</td></tr>
@@ -32,9 +32,13 @@
         {% endif %}
     </table>
 
-    <form method="post" action="{% url 'actions:review_record' record.pk %}">
+    <form method="post" action="{% url 'actions:review_record' record.pk %}" class="field is-grouped">
         {% csrf_token %}
-        <button type="submit" name="action" value="actioned">Mark actioned</button>
-        <button type="submit" name="action" value="dismissed">Dismiss</button>
+        <div class="control">
+            <button type="submit" name="action" value="actioned" class="button is-success">Mark actioned</button>
+        </div>
+        <div class="control">
+            <button type="submit" name="action" value="dismissed" class="button is-light">Dismiss</button>
+        </div>
     </form>
 {% endblock %}
