@@ -116,10 +116,10 @@ REDDIT_USER_AGENT = env(
 )
 REDDIT_SUBREDDIT = env('REDDIT_SUBREDDIT', default='LouboutinLife')
 
-# Raw queue caps — oldest unprocessed items beyond these are silently
-# dropped by `reconcile` if inference falls behind.
-QUEUE_COMMENT_CAP = env.int('QUEUE_COMMENT_CAP', default=5000)
-QUEUE_POST_CAP = env.int('QUEUE_POST_CAP', default=100)
+# Raw item retention window — RawItem is trimmed to the most recent N of
+# each type by `reconcile`, regardless of evaluation status.
+RETAINED_COMMENT_CAP = env.int('RETAINED_COMMENT_CAP', default=5000)
+RETAINED_POST_CAP = env.int('RETAINED_POST_CAP', default=100)
 
 # How many recent comments/posts `reconcile` fetches from Reddit each run to
 # catch anything the stream missed.

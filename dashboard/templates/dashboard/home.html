@@ -4,89 +4,57 @@
 {% block content %}
     <h1 class="title">Dashboard</h1>
 
-    <h2 class="subtitle">Ingest queue</h2>
-    <div class="level">
-        <div class="level-item has-text-centered">
-            <div>
-                <p class="heading">Comments queued</p>
-                <p class="title">{{ raw_comment_count }} / {{ raw_comment_cap }}</p>
-            </div>
-        </div>
-        <div class="level-item has-text-centered">
-            <div>
-                <p class="heading">Posts queued</p>
-                <p class="title">{{ raw_post_count }} / {{ raw_post_cap }}</p>
-            </div>
-        </div>
-    </div>
-
-    <h2 class="subtitle">Evaluation</h2>
-    <div class="level">
-        <div class="level-item has-text-centered">
-            <div>
-                <p class="heading">Processed (all time)</p>
-                <p class="title">{{ total_processed }}</p>
-            </div>
-        </div>
-        <div class="level-item has-text-centered">
-            <div>
-                <p class="heading">Processed (24h)</p>
-                <p class="title">{{ processed_last_24h }}</p>
-            </div>
-        </div>
-        <div class="level-item has-text-centered">
-            <div>
-                <p class="heading">Flagged (24h)</p>
-                <p class="title">{{ flagged_last_24h }}</p>
-            </div>
-        </div>
-    </div>
-
-    <h2 class="subtitle">Needs attention</h2>
-    <div class="level">
-        <div class="level-item has-text-centered">
-            <div>
-                <p class="heading">Unreviewed flagged items</p>
-                <p class="title">{{ unreviewed_flagged }}</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="buttons">
-        <a class="button is-link" href="{% url 'actions:queue_list' %}">Review queue</a>
-        <a class="button" href="{% url 'actions:stats' %}">Full stats</a>
-    </div>
-
-    <h2 class="subtitle">Trends</h2>
     <div class="buttons has-addons">
         <button class="button is-small is-link" data-granularity="hour">Hourly</button>
         <button class="button is-small" data-granularity="day">Daily</button>
     </div>
-    <canvas id="metrics-chart" height="90"></canvas>
+
+    <h2 class="subtitle">Reddit Posts</h2>
+    <canvas id="post-chart" height="90"></canvas>
+
+    <h2 class="subtitle">Reddit Comments</h2>
+    <canvas id="comment-chart" height="90"></canvas>
 {% endblock %}
 
 {% block extra_js %}
     <script src="{% static 'js/chart.umd.min.js' %}"></script>
     <script src="{% static 'js/chartjs-adapter-date-fns.bundle.min.js' %}"></script>
     <script>
-        const ctx = document.getElementById('metrics-chart');
-        const buttons = document.querySelectorAll('[data-granularity]');
-        let chart = null;
+        const METRIC_COLORS = {
+            ingested: '#2a78d6',
+            evaluated: '#eb6834',
+            flagged: '#1baf7a',
+        };
 
-        async function loadMetrics(granularity) {
-            const resp = await fetch(`{% url 'metrics_data' %}?granularity=${granularity}`);
+        const charts = {
+            post: { ctx: document.getElementById('post-chart'), instance: null },
+            comment: { ctx: document.getElementById('comment-chart'), instance: null },
+        };
+
+        function bucketItemsUrl(itemType, metric, granularity, bucketStart) {
+            const params = new URLSearchParams({
+                item_type: itemType, metric, granularity, bucket_start: bucketStart,
+            });
+            return `{% url 'bucket_items' %}?${params.toString()}`;
+        }
+
+        async function loadMetrics(itemType, granularity) {
+            const resp = await fetch(`{% url 'metrics_data' %}?item_type=${itemType}&granularity=${granularity}`);
             const data = await resp.json();
 
             const datasets = data.datasets.map(ds => ({
                 label: ds.label,
+                metric: ds.metric,
                 data: ds.data,
-                borderWidth: 1,
+                backgroundColor: METRIC_COLORS[ds.label.toLowerCase()],
+                borderWidth: 0,
             }));
 
-            if (chart) {
-                chart.destroy();
+            const entry = charts[itemType];
+            if (entry.instance) {
+                entry.instance.destroy();
             }
-            chart = new Chart(ctx, {
+            entry.instance = new Chart(entry.ctx, {
                 type: 'bar',
                 data: { labels: data.labels, datasets },
                 options: {
@@ -95,21 +63,33 @@
                             type: 'time',
                             time: { unit: granularity === 'hour' ? 'hour' : 'day' },
                             stacked: true,
+                            grid: { color: '#e1e0d9' },
                         },
-                        y: { stacked: true, beginAtZero: true },
+                        y: { stacked: true, beginAtZero: true, grid: { color: '#e1e0d9' } },
+                    },
+                    onClick(event, elements, chart) {
+                        const hit = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                        if (!hit.length) return;
+                        const { datasetIndex, index } = hit[0];
+                        const metric = chart.data.datasets[datasetIndex].metric.split('.')[0];
+                        const bucketStart = chart.data.labels[index];
+                        window.location.href = bucketItemsUrl(itemType, metric, granularity, bucketStart);
                     },
                 },
             });
         }
 
+        const buttons = document.querySelectorAll('[data-granularity]');
         buttons.forEach(btn => {
             btn.addEventListener('click', () => {
                 buttons.forEach(b => b.classList.remove('is-link'));
                 btn.classList.add('is-link');
-                loadMetrics(btn.dataset.granularity);
+                loadMetrics('post', btn.dataset.granularity);
+                loadMetrics('comment', btn.dataset.granularity);
             });
         });
 
-        loadMetrics('hour');
+        loadMetrics('post', 'hour');
+        loadMetrics('comment', 'hour');
     </script>
 {% endblock %}

@@ -2,7 +2,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from ingest.ingestion import save_comment, save_post
-from ingest.models import RawComment, RawPost
+from ingest.models import ItemType, RawItem
 from ingest.reddit_client import get_subreddit
 from ingest.trimming import trim_to_cap
 from evaluate.models import EvaluationRecord
@@ -24,20 +24,24 @@ class Command(BaseCommand):
 
         comments_added = 0
         for comment in subreddit.comments(limit=settings.RECONCILE_COMMENT_FETCH_LIMIT):
-            if f"t1_{comment.id}" in already_scored:
+            if comment.fullname in already_scored:
                 continue
             _, created = save_comment(comment)
             comments_added += created
 
         posts_added = 0
         for submission in subreddit.new(limit=settings.RECONCILE_POST_FETCH_LIMIT):
-            if f"t3_{submission.id}" in already_scored:
+            if submission.fullname in already_scored:
                 continue
             _, created = save_post(submission)
             posts_added += created
 
-        comments_trimmed = trim_to_cap(RawComment, settings.QUEUE_COMMENT_CAP)
-        posts_trimmed = trim_to_cap(RawPost, settings.QUEUE_POST_CAP)
+        comments_trimmed = trim_to_cap(
+            RawItem.objects.filter(item_type=ItemType.COMMENT), settings.RETAINED_COMMENT_CAP
+        )
+        posts_trimmed = trim_to_cap(
+            RawItem.objects.filter(item_type=ItemType.POST), settings.RETAINED_POST_CAP
+        )
 
         self.stdout.write(
             self.style.SUCCESS(

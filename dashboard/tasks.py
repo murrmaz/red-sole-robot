@@ -8,6 +8,7 @@ from django_tasks import task
 from actions.models import ActionRecord
 from dashboard.models import Granularity, MetricBucket
 from evaluate.models import EvaluationRecord, Verdict
+from ingest.models import IngestLogEntry
 
 _TRUNC = {Granularity.HOUR: TruncHour, Granularity.DAY: TruncDay}
 
@@ -40,11 +41,31 @@ def _rollup_evaluations(granularity, since):
         rows.append(MetricBucket(granularity=granularity, bucket_start=entry["bucket"],
                                   metric_key=f"verdict.{entry['verdict']}", count=entry["n"]))
 
+    flagged_qs = qs.filter(verdict=Verdict.FLAGGED)
+    for entry in flagged_qs.values("bucket", "item_type").annotate(n=Count("id")):
+        rows.append(MetricBucket(granularity=granularity, bucket_start=entry["bucket"],
+                                  metric_key=f"flagged.{entry['item_type']}", count=entry["n"]))
+
     cat_qs = qs.filter(verdict=Verdict.FLAGGED).exclude(category="")
     for entry in cat_qs.values("bucket", "category").annotate(n=Count("id")):
         rows.append(MetricBucket(granularity=granularity, bucket_start=entry["bucket"],
                                   metric_key=f"category.{slugify(entry['category']) or 'uncategorized'}",
                                   count=entry["n"]))
+    _upsert(rows)
+
+
+def _rollup_ingested(granularity, since):
+    trunc = _TRUNC[granularity]
+    qs = IngestLogEntry.objects.all()
+    if since is not None:
+        qs = qs.filter(fetched_at__gte=since)
+    qs = qs.annotate(bucket=trunc("fetched_at"))
+
+    rows = [
+        MetricBucket(granularity=granularity, bucket_start=entry["bucket"],
+                      metric_key=f"ingested.{entry['item_type']}", count=entry["n"])
+        for entry in qs.values("bucket", "item_type").annotate(n=Count("id"))
+    ]
     _upsert(rows)
 
 
@@ -68,6 +89,7 @@ def run_rollup(since: datetime | None = None) -> None:
     (granularity, bucket_start, metric_key)); since=None recomputes all
     history (one-time backfill), a cutoff makes incremental runs cheap."""
     for granularity in (Granularity.HOUR, Granularity.DAY):
+        _rollup_ingested(granularity, since)
         _rollup_evaluations(granularity, since)
         _rollup_actions(granularity, since)
 

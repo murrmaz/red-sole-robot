@@ -1,0 +1,59 @@
+{% extends "actions/base.html" %}
+{% block title %}Items — Red Sole Robot{% endblock %}
+{% block content %}
+    <p><a href="{% url 'home' %}">&larr; Back to dashboard</a></p>
+    <h1 class="title">
+        {{ metric|capfirst }} {{ item_type }}s — {{ bucket_start }} ({{ granularity }})
+    </h1>
+
+    <table class="table is-fullwidth is-striped is-hoverable">
+        <thead>
+            <tr>
+                <th>Subreddit</th>
+                {% if metric != "ingested" %}
+                    <th>Author</th>
+                    <th>Verdict</th>
+                    <th>Category</th>
+                    <th>Confidence</th>
+                {% endif %}
+                <th>Timestamp</th>
+                <th>Content</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record, raw in rows %}
+                <tr>
+                    <td>{{ record.subreddit }}</td>
+                    {% if metric != "ingested" %}
+                        <td>{{ record.author }}</td>
+                        <td><span class="badge badge-{{ record.verdict }}">{{ record.get_verdict_display }}</span></td>
+                        <td>{{ record.category }}</td>
+                        <td>{{ record.confidence|default_if_none:"—" }}</td>
+                    {% endif %}
+                    <td>{% if metric == "ingested" %}{{ record.fetched_at }}{% else %}{{ record.processed_at }}{% endif %}</td>
+                    <td>
+                        {% if raw %}
+                            {% if raw.item_type == "post" %}
+                                <strong>{{ raw.title }}</strong>
+                                {% if raw.selftext %}<p>{{ raw.selftext|truncatewords:60 }}</p>{% endif %}
+                            {% else %}
+                                <p>{{ raw.body|truncatewords:60 }}</p>
+                            {% endif %}
+                        {% else %}
+                            <em>No longer retained</em>
+                        {% endif %}
+                        <a href="https://reddit.com{{ record.permalink }}" target="_blank" rel="noopener">View on Reddit</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7">No items in this time period.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p>
+        {% if page_obj.has_previous %}<a href="?item_type={{ item_type }}&metric={{ metric }}&granularity={{ granularity }}&bucket_start={{ bucket_start|urlencode }}&page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        {% if page_obj.has_next %}<a href="?item_type={{ item_type }}&metric={{ metric }}&granularity={{ granularity }}&bucket_start={{ bucket_start|urlencode }}&page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </p>
+{% endblock %}

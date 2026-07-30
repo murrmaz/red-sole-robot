@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from django.test import TestCase
 
 from ingest.ingestion import save_comment, save_post
-from ingest.models import RawComment, RawPost
+from ingest.models import IngestLogEntry, ItemType, RawItem
 from ingest.trimming import trim_to_cap
 
 
@@ -19,6 +19,10 @@ class FakeComment:
     parent_id: str = "t3_abc"
     created_utc: float = 1_700_000_000.0
 
+    @property
+    def fullname(self):
+        return f"t1_{self.id}"
+
 
 @dataclass
 class FakeSubmission:
@@ -31,18 +35,24 @@ class FakeSubmission:
     permalink: str = "/r/LouboutinLife/comments/abc/"
     created_utc: float = 1_700_000_000.0
 
+    @property
+    def fullname(self):
+        return f"t3_{self.id}"
+
 
 class SaveCommentTests(TestCase):
-    def test_dedups_by_reddit_id(self):
+    def test_dedups_by_fullname(self):
         comment = FakeComment(id="abc123")
         save_comment(comment)
         save_comment(comment)
-        self.assertEqual(RawComment.objects.filter(reddit_id="abc123").count(), 1)
+        self.assertEqual(RawItem.objects.filter(fullname="t1_abc123").count(), 1)
+        self.assertEqual(IngestLogEntry.objects.filter(fullname="t1_abc123").count(), 1)
 
     def test_stores_expected_fields(self):
         comment = FakeComment(id="abc123")
         save_comment(comment)
-        raw = RawComment.objects.get(reddit_id="abc123")
+        raw = RawItem.objects.get(fullname="t1_abc123")
+        self.assertEqual(raw.item_type, ItemType.COMMENT)
         self.assertEqual(raw.body, "hello world")
         self.assertEqual(raw.subreddit, "LouboutinLife")
         self.assertEqual(
@@ -51,11 +61,12 @@ class SaveCommentTests(TestCase):
 
 
 class SavePostTests(TestCase):
-    def test_dedups_by_reddit_id(self):
+    def test_dedups_by_fullname(self):
         submission = FakeSubmission(id="post1")
         save_post(submission)
         save_post(submission)
-        self.assertEqual(RawPost.objects.filter(reddit_id="post1").count(), 1)
+        self.assertEqual(RawItem.objects.filter(fullname="t3_post1").count(), 1)
+        self.assertEqual(IngestLogEntry.objects.filter(fullname="t3_post1").count(), 1)
 
 
 class TrimToCapTests(TestCase):
@@ -64,8 +75,8 @@ class TrimToCapTests(TestCase):
         for i in range(10):
             save_comment(FakeComment(id=f"c{i}", created_utc=base + i))
 
-        deleted = trim_to_cap(RawComment, 3)
+        deleted = trim_to_cap(RawItem.objects.filter(item_type=ItemType.COMMENT), 3)
 
         self.assertEqual(deleted, 7)
-        remaining_ids = set(RawComment.objects.values_list("reddit_id", flat=True))
-        self.assertEqual(remaining_ids, {"c7", "c8", "c9"})
+        remaining_fullnames = set(RawItem.objects.values_list("fullname", flat=True))
+        self.assertEqual(remaining_fullnames, {"t1_c7", "t1_c8", "t1_c9"})

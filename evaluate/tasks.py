@@ -4,47 +4,41 @@ from django_tasks import task
 
 from evaluate.backends import get_inference_backend
 from evaluate.models import EvaluationRecord, ItemType, Verdict
-from ingest.models import RawComment, RawPost
+from ingest.models import RawItem
 
 logger = logging.getLogger(__name__)
 
-_RAW_MODELS = {
-    ItemType.COMMENT: (RawComment, "t1"),
-    ItemType.POST: (RawPost, "t3"),
-}
-
 
 @task()
-def evaluate_item(item_type: str, raw_id: int) -> None:
-    """Run evaluation on one queued raw item and record the verdict, then
-    delete the raw content regardless of outcome, since it must not be
-    retained once evaluation has seen it. If the verdict is flagged, hands
-    off to `actions.tasks.handle_flagged` — evaluation itself has no
-    knowledge of what happens as a result of a verdict.
+def evaluate_item(raw_id: int) -> None:
+    """Run evaluation on one queued raw item and record the verdict. If the
+    verdict is flagged, hands off to `actions.tasks.handle_flagged` —
+    evaluation itself has no knowledge of what happens as a result of a
+    verdict.
 
-    On a failed/malformed evaluation response, the raw row is left in place
-    so a later run retries it; it stays bounded by the queue cap either way.
+    The raw row is left in place either way (it's no longer deleted here) —
+    RawItem now persists as a rolling retention window, trimmed by
+    `reconcile`, rather than being deleted at evaluation time.
     """
     from actions.tasks import handle_flagged
 
-    raw_model, fullname_prefix = _RAW_MODELS[item_type]
     try:
-        raw = raw_model.objects.get(id=raw_id)
-    except raw_model.DoesNotExist:
+        raw = RawItem.objects.get(id=raw_id)
+    except RawItem.DoesNotExist:
         return
 
-    text = raw.body if item_type == ItemType.COMMENT else f"{raw.title}\n\n{raw.selftext}"
+    text = raw.body if raw.item_type == ItemType.COMMENT else f"{raw.title}\n\n{raw.selftext}"
 
     backend = get_inference_backend()
     try:
         result = backend.classify(text)
     except Exception:
-        logger.exception("Evaluation failed for %s raw_id=%s", item_type, raw_id)
+        logger.exception("Evaluation failed for raw_id=%s", raw_id)
         return
 
     record = EvaluationRecord.objects.create(
-        item_type=item_type,
-        reddit_fullname=f"{fullname_prefix}_{raw.reddit_id}",
+        item_type=raw.item_type,
+        reddit_fullname=raw.fullname,
         subreddit=raw.subreddit,
         author=raw.author,
         permalink=raw.permalink,
@@ -58,5 +52,3 @@ def evaluate_item(item_type: str, raw_id: int) -> None:
 
     if result.flagged:
         handle_flagged.enqueue(record.id)
-
-    raw.delete()

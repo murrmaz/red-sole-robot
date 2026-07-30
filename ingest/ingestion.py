@@ -1,4 +1,4 @@
-"""Shared logic for turning PRAW objects into RawComment/RawPost rows.
+"""Shared logic for turning PRAW objects into RawItem/IngestLogEntry rows.
 
 Used by both the `stream` and `reconcile` management commands so ingestion
 behavior (dedup, field mapping, enqueueing inference) stays in one place.
@@ -7,7 +7,7 @@ behavior (dedup, field mapping, enqueueing inference) stays in one place.
 from datetime import datetime, timezone
 
 from evaluate.tasks import evaluate_item
-from ingest.models import RawComment, RawPost
+from ingest.models import IngestLogEntry, ItemType, RawItem
 
 
 def _created_utc(reddit_obj):
@@ -15,11 +15,13 @@ def _created_utc(reddit_obj):
 
 
 def save_comment(comment):
-    """Get-or-create a RawComment for a PRAW comment, enqueueing inference
+    """Get-or-create a RawItem for a PRAW comment, enqueueing inference
     on first insert. Returns the row (whether newly created or not)."""
-    raw, created = RawComment.objects.get_or_create(
-        reddit_id=comment.id,
+    raw, created = RawItem.objects.get_or_create(
+        fullname=comment.fullname,
         defaults={
+            "item_type": ItemType.COMMENT,
+            "reddit_id": comment.id,
             "subreddit": str(comment.subreddit),
             "author": str(comment.author) if comment.author else "",
             "body": comment.body,
@@ -30,16 +32,24 @@ def save_comment(comment):
         },
     )
     if created:
-        evaluate_item.enqueue("comment", raw.id)
+        IngestLogEntry.objects.create(
+            item_type=ItemType.COMMENT,
+            fullname=raw.fullname,
+            subreddit=raw.subreddit,
+            permalink=raw.permalink,
+        )
+        evaluate_item.enqueue(raw.id)
     return raw, created
 
 
 def save_post(submission):
-    """Get-or-create a RawPost for a PRAW submission, enqueueing inference
+    """Get-or-create a RawItem for a PRAW submission, enqueueing inference
     on first insert. Returns the row (whether newly created or not)."""
-    raw, created = RawPost.objects.get_or_create(
-        reddit_id=submission.id,
+    raw, created = RawItem.objects.get_or_create(
+        fullname=submission.fullname,
         defaults={
+            "item_type": ItemType.POST,
+            "reddit_id": submission.id,
             "subreddit": str(submission.subreddit),
             "author": str(submission.author) if submission.author else "",
             "title": submission.title,
@@ -50,5 +60,11 @@ def save_post(submission):
         },
     )
     if created:
-        evaluate_item.enqueue("post", raw.id)
+        IngestLogEntry.objects.create(
+            item_type=ItemType.POST,
+            fullname=raw.fullname,
+            subreddit=raw.subreddit,
+            permalink=raw.permalink,
+        )
+        evaluate_item.enqueue(raw.id)
     return raw, created
