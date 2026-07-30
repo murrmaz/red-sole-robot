@@ -1,4 +1,5 @@
 {% extends "actions/base.html" %}
+{% load static %}
 {% block title %}Dashboard — Red Sole Robot{% endblock %}
 {% block content %}
     <h1 class="title">Dashboard</h1>
@@ -55,4 +56,60 @@
         <a class="button is-link" href="{% url 'actions:queue_list' %}">Review queue</a>
         <a class="button" href="{% url 'actions:stats' %}">Full stats</a>
     </div>
+
+    <h2 class="subtitle">Trends</h2>
+    <div class="buttons has-addons">
+        <button class="button is-small is-link" data-granularity="hour">Hourly</button>
+        <button class="button is-small" data-granularity="day">Daily</button>
+    </div>
+    <canvas id="metrics-chart" height="90"></canvas>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/chart.umd.min.js' %}"></script>
+    <script src="{% static 'js/chartjs-adapter-date-fns.bundle.min.js' %}"></script>
+    <script>
+        const ctx = document.getElementById('metrics-chart');
+        const buttons = document.querySelectorAll('[data-granularity]');
+        let chart = null;
+
+        async function loadMetrics(granularity) {
+            const resp = await fetch(`{% url 'metrics_data' %}?granularity=${granularity}`);
+            const data = await resp.json();
+
+            const datasets = data.datasets.map(ds => ({
+                label: ds.label,
+                data: ds.data,
+                borderWidth: 1,
+            }));
+
+            if (chart) {
+                chart.destroy();
+            }
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: data.labels, datasets },
+                options: {
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: granularity === 'hour' ? 'hour' : 'day' },
+                            stacked: true,
+                        },
+                        y: { stacked: true, beginAtZero: true },
+                    },
+                },
+            });
+        }
+
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                buttons.forEach(b => b.classList.remove('is-link'));
+                btn.classList.add('is-link');
+                loadMetrics(btn.dataset.granularity);
+            });
+        });
+
+        loadMetrics('hour');
+    </script>
 {% endblock %}
