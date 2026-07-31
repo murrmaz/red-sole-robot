@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django_tasks import task
 
 from evaluate.backends import get_inference_backend
@@ -9,7 +10,7 @@ from ingest.models import RawItem
 logger = logging.getLogger(__name__)
 
 
-@task()
+@task(queue_name=settings.TASK_QUEUE_EVALUATION)
 def evaluate_item(raw_id: int) -> None:
     """Run evaluation on one queued raw item and record the verdict. If the
     verdict is flagged, hands off to `actions.tasks.handle_flagged` —

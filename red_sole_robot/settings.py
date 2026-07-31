@@ -98,9 +98,25 @@ DATABASES = {
 # ORM-backed queue and the `db_worker` management command.
 # https://docs.djangoproject.com/en/6.0/topics/tasks/
 
+# Each task group gets its own named queue, backed by the same
+# TASKS['default'] DatabaseBackend, so a db_worker can be scoped to just one
+# group. evaluate_item is AI-inference-bound, handle_flagged is Reddit-API-
+# bound and throttling-prone — keeping them apart means Reddit throttling
+# can't back up evaluation throughput, or vice versa. Dashboard rollups get
+# their own queue too so a metrics backfill can't compete with either.
+#
+# Run three worker processes:
+#   manage.py db_worker --queue-name=evaluation
+#   manage.py db_worker --queue-name=actions
+#   manage.py db_worker --queue-name=dashboard
+TASK_QUEUE_EVALUATION = "evaluation"
+TASK_QUEUE_ACTIONS = "actions"
+TASK_QUEUE_DASHBOARD = "dashboard"
+
 TASKS = {
     'default': {
         'BACKEND': 'django_tasks_db.DatabaseBackend',
+        'QUEUES': [TASK_QUEUE_EVALUATION, TASK_QUEUE_ACTIONS, TASK_QUEUE_DASHBOARD],
     }
 }
 

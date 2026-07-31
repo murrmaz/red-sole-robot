@@ -1,12 +1,13 @@
 from datetime import datetime, timezone
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
 from actions.models import ActionRecord
 from dashboard.models import MetricBucket
-from dashboard.tasks import run_rollup
+from dashboard.tasks import rollup_metrics_task, run_rollup
 from evaluate.models import EvaluationRecord, ItemType, Verdict
 from ingest.models import IngestLogEntry
 
@@ -139,6 +140,11 @@ class RunRollupTests(TestCase):
         self.assertEqual(
             MetricBucket.objects.get(granularity="day", metric_key="flagged.comment").count, 1
         )
+
+
+class TaskQueueAssignmentTests(TestCase):
+    def test_rollup_metrics_task_uses_dashboard_queue(self):
+        self.assertEqual(rollup_metrics_task.queue_name, settings.TASK_QUEUE_DASHBOARD)
 
     def test_rollup_counts_ingested(self):
         make_ingest_log_entry(fullname="t1_a")

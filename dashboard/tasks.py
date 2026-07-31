@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from django.conf import settings
 from django.db.models import Count
 from django.db.models.functions import TruncDay, TruncHour
 from django.utils.text import slugify
@@ -94,6 +95,6 @@ def run_rollup(since: datetime | None = None) -> None:
         _rollup_actions(granularity, since)
 
 
-@task()
+@task(queue_name=settings.TASK_QUEUE_DASHBOARD)
 def rollup_metrics_task(since_iso: str | None = None) -> None:
     run_rollup(datetime.fromisoformat(since_iso) if since_iso else None)

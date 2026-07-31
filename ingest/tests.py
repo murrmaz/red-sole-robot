@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from unittest.mock import patch
@@ -7,9 +8,11 @@ from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 
+import ingest.reddit_client as reddit_client
 from evaluate.models import EvaluationRecord, ItemType as EvalItemType, Verdict
 from ingest.ingestion import save_comment, save_post
 from ingest.models import IngestLogEntry, ItemType, RawItem
+from ingest.reddit_client import get_reddit_client
 from ingest.trimming import trim_to_cap
 
 
@@ -144,3 +147,25 @@ class TrimToCapTests(TestCase):
         self.assertEqual(deleted, 7)
         remaining_fullnames = set(RawItem.objects.values_list("fullname", flat=True))
         self.assertEqual(remaining_fullnames, {"t1_c7", "t1_c8", "t1_c9"})
+
+
+class RedditClientSingletonTests(TestCase):
+    def setUp(self):
+        reddit_client._client = None
+        self.addCleanup(setattr, reddit_client, "_client", None)
+
+    @patch("ingest.reddit_client.praw.Reddit")
+    def test_returns_same_instance(self, mock_reddit_cls):
+        first = get_reddit_client()
+        second = get_reddit_client()
+
+        mock_reddit_cls.assert_called_once()
+        self.assertIs(first, second)
+
+    @patch("ingest.reddit_client.praw.Reddit")
+    def test_thread_safe_construction(self, mock_reddit_cls):
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            results = list(executor.map(lambda _: get_reddit_client(), range(20)))
+
+        mock_reddit_cls.assert_called_once()
+        self.assertTrue(all(r is results[0] for r in results))
