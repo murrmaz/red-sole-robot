@@ -1,8 +1,13 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from unittest.mock import patch
 
+from django.core.management import call_command
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 
+from evaluate.models import EvaluationRecord, ItemType as EvalItemType, Verdict
 from ingest.ingestion import save_comment, save_post
 from ingest.models import IngestLogEntry, ItemType, RawItem
 from ingest.trimming import trim_to_cap
@@ -67,6 +72,65 @@ class SavePostTests(TestCase):
         save_post(submission)
         self.assertEqual(RawItem.objects.filter(fullname="t3_post1").count(), 1)
         self.assertEqual(IngestLogEntry.objects.filter(fullname="t3_post1").count(), 1)
+
+
+class FakeSubreddit:
+    def __init__(self, comments=(), submissions=()):
+        self._comments = list(comments)
+        self._submissions = list(submissions)
+
+    def comments(self, limit=None):
+        return self._comments
+
+    def new(self, limit=None):
+        return self._submissions
+
+
+def make_evaluation_record(fullname):
+    return EvaluationRecord.objects.create(
+        item_type=EvalItemType.COMMENT,
+        reddit_fullname=fullname,
+        subreddit="LouboutinLife",
+        author="someuser",
+        permalink="/r/LouboutinLife/comments/abc/xyz/",
+        content_created_utc=datetime.fromtimestamp(1_700_000_000.0, tz=timezone.utc),
+        verdict=Verdict.CLEAR,
+    )
+
+
+class ReconcileCommandTests(TestCase):
+    @patch("ingest.management.commands.reconcile.get_subreddit")
+    def test_skips_items_already_evaluated(self, mock_get_subreddit):
+        make_evaluation_record("t1_c1")
+        mock_get_subreddit.return_value = FakeSubreddit(
+            comments=[FakeComment(id="c1"), FakeComment(id="c2")],
+        )
+
+        call_command("reconcile")
+
+        self.assertFalse(RawItem.objects.filter(fullname="t1_c1").exists())
+        self.assertTrue(RawItem.objects.filter(fullname="t1_c2").exists())
+
+    @patch("ingest.management.commands.reconcile.get_subreddit")
+    def test_evaluation_lookup_is_bounded_by_fetch_size_not_table_size(
+        self, mock_get_subreddit
+    ):
+        for i in range(500):
+            make_evaluation_record(f"t1_old{i}")
+        mock_get_subreddit.return_value = FakeSubreddit(
+            comments=[FakeComment(id="c1")],
+        )
+
+        with CaptureQueriesContext(connection) as queries:
+            call_command("reconcile")
+
+        evaluation_lookup_queries = [
+            q for q in queries.captured_queries
+            if "evaluate_evaluationrecord" in q["sql"].lower() and "select" in q["sql"].lower()
+        ]
+        self.assertEqual(len(evaluation_lookup_queries), 1)
+        self.assertIn("t1_c1", evaluation_lookup_queries[0]["sql"])
+        self.assertNotIn("t1_old0", evaluation_lookup_queries[0]["sql"])
 
 
 class TrimToCapTests(TestCase):

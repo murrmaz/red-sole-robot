@@ -80,7 +80,10 @@ def stats(request):
     context = {
         "total_processed": recent.count(),
         "total_flagged": recent.filter(verdict=Verdict.FLAGGED).count(),
-        "total_unreviewed": recent_actions.filter(
+        # Unreviewed backlog is intentionally not time-bounded -- a flagged
+        # item doesn't stop needing review just because it's older than the
+        # rest of this "last 7 days" panel.
+        "total_unreviewed": ActionRecord.objects.filter(
             review_status=ReviewStatus.UNREVIEWED
         ).count(),
         "report_failures": recent_actions.exclude(error="").count(),

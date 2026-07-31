@@ -18,19 +18,26 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         subreddit = get_subreddit()
+        comments = list(subreddit.comments(limit=settings.RECONCILE_COMMENT_FETCH_LIMIT))
+        submissions = list(subreddit.new(limit=settings.RECONCILE_POST_FETCH_LIMIT))
+
+        # Only check evaluation status for the handful of items just fetched,
+        # not the whole (permanent, ever-growing) EvaluationRecord table.
+        fetched_fullnames = [c.fullname for c in comments] + [s.fullname for s in submissions]
         already_scored = set(
-            EvaluationRecord.objects.values_list("reddit_fullname", flat=True)
+            EvaluationRecord.objects.filter(reddit_fullname__in=fetched_fullnames)
+            .values_list("reddit_fullname", flat=True)
         )
 
         comments_added = 0
-        for comment in subreddit.comments(limit=settings.RECONCILE_COMMENT_FETCH_LIMIT):
+        for comment in comments:
             if comment.fullname in already_scored:
                 continue
             _, created = save_comment(comment)
             comments_added += created
 
         posts_added = 0
-        for submission in subreddit.new(limit=settings.RECONCILE_POST_FETCH_LIMIT):
+        for submission in submissions:
             if submission.fullname in already_scored:
                 continue
             _, created = save_post(submission)
