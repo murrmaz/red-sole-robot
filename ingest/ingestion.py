@@ -1,13 +1,14 @@
 """Shared logic for turning PRAW objects into RawItem/IngestLogEntry rows.
 
-Used by both the `stream` and `reconcile` management commands so ingestion
-behavior (dedup, field mapping, enqueueing inference) stays in one place.
+Used by both `ingest_batch` and preparation's ancestor-fetch fallback, so
+ingestion behavior (dedup, field mapping, enqueueing preparation) stays in
+one place.
 """
 
 from datetime import datetime, timezone
 
-from evaluate.tasks import evaluate_item
 from ingest.models import IngestLogEntry, ItemType, RawItem
+from preparation.tasks import prepare_item
 
 
 def _created_utc(reddit_obj):
@@ -15,8 +16,9 @@ def _created_utc(reddit_obj):
 
 
 def save_comment(comment):
-    """Get-or-create a RawItem for a PRAW comment, enqueueing inference
-    on first insert. Returns the row (whether newly created or not)."""
+    """Get-or-create a RawItem for a PRAW comment, enqueueing context
+    preparation on first insert. Returns the row (whether newly created or
+    not)."""
     raw, created = RawItem.objects.get_or_create(
         fullname=comment.fullname,
         defaults={
@@ -38,13 +40,14 @@ def save_comment(comment):
             subreddit=raw.subreddit,
             permalink=raw.permalink,
         )
-        evaluate_item.enqueue(raw.id)
+        prepare_item.enqueue(raw.id)
     return raw, created
 
 
 def save_post(submission):
-    """Get-or-create a RawItem for a PRAW submission, enqueueing inference
-    on first insert. Returns the row (whether newly created or not)."""
+    """Get-or-create a RawItem for a PRAW submission, enqueueing context
+    preparation on first insert. Returns the row (whether newly created or
+    not)."""
     raw, created = RawItem.objects.get_or_create(
         fullname=submission.fullname,
         defaults={
@@ -66,5 +69,5 @@ def save_post(submission):
             subreddit=raw.subreddit,
             permalink=raw.permalink,
         )
-        evaluate_item.enqueue(raw.id)
+        prepare_item.enqueue(raw.id)
     return raw, created

@@ -103,5 +103,5 @@ class TaskQueueAssignmentTests(TestCase):
     def test_evaluate_item_uses_evaluation_queue(self):
         self.assertEqual(evaluate_item.queue_name, settings.TASK_QUEUE_EVALUATION)
 
-    def test_handle_flagged_uses_actions_queue(self):
-        self.assertEqual(handle_flagged.queue_name, settings.TASK_QUEUE_ACTIONS)
+    def test_handle_flagged_uses_reddit_queue(self):
+        self.assertEqual(handle_flagged.queue_name, settings.TASK_QUEUE_REDDIT)

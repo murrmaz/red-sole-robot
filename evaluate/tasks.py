@@ -11,15 +11,20 @@ logger = logging.getLogger(__name__)
 
 
 @task(queue_name=settings.TASK_QUEUE_EVALUATION)
-def evaluate_item(raw_id: int) -> None:
+def evaluate_item(raw_id: int, context: str = "") -> None:
     """Run evaluation on one queued raw item and record the verdict. If the
     verdict is flagged, hands off to `actions.tasks.handle_flagged` —
     evaluation itself has no knowledge of what happens as a result of a
     verdict.
 
+    `context` is the conversational context (parent comments) assembled by
+    `preparation.tasks.prepare_item` -- passed through as a plain argument
+    rather than persisted anywhere, since it's raw content and must not be
+    retained once scored (same rule EvaluationRecord itself follows).
+
     The raw row is left in place either way (it's no longer deleted here) —
     RawItem now persists as a rolling retention window, trimmed by
-    `reconcile`, rather than being deleted at evaluation time.
+    `ingest_batch`, rather than being deleted at evaluation time.
     """
     from actions.tasks import handle_flagged
 
@@ -32,7 +37,7 @@ def evaluate_item(raw_id: int) -> None:
 
     backend = get_inference_backend()
     try:
-        result = backend.classify(text)
+        result = backend.classify(text, context=context)
     except Exception:
         logger.exception("Evaluation failed for raw_id=%s", raw_id)
         return

@@ -13,11 +13,15 @@ logger = logging.getLogger(__name__)
 MAX_RETRY_ATTEMPTS = 5  # 1 initial attempt + 4 retries
 
 
-@task(queue_name=settings.TASK_QUEUE_ACTIONS)
+@task(queue_name=settings.TASK_QUEUE_REDDIT, priority=10)
 def handle_flagged(evaluation_record_id: int, attempt: int = 0) -> None:
     """React to a flagged EvaluationRecord. Currently the only action is a
     native Reddit report; future action types (removing content, banning
-    users) get added here without touching evaluation logic."""
+    users) get added here without touching evaluation logic.
+
+    Runs at a higher priority than ingest_batch/prepare_item on the shared
+    reddit queue so reporting flagged content isn't delayed behind a large
+    batch ingest or a slow preparation fetch."""
     try:
         record = EvaluationRecord.objects.get(id=evaluation_record_id)
     except EvaluationRecord.DoesNotExist:

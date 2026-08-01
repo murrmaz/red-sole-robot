@@ -13,6 +13,7 @@ from evaluate.models import EvaluationRecord, ItemType as EvalItemType, Verdict
 from ingest.ingestion import save_comment, save_post
 from ingest.models import IngestLogEntry, ItemType, RawItem
 from ingest.reddit_client import get_reddit_client
+from ingest.tasks import ingest_batch
 from ingest.trimming import trim_to_cap
 
 
@@ -101,20 +102,20 @@ def make_evaluation_record(fullname):
     )
 
 
-class ReconcileCommandTests(TestCase):
-    @patch("ingest.management.commands.reconcile.get_subreddit")
+class IngestBatchTaskTests(TestCase):
+    @patch("ingest.tasks.get_subreddit")
     def test_skips_items_already_evaluated(self, mock_get_subreddit):
         make_evaluation_record("t1_c1")
         mock_get_subreddit.return_value = FakeSubreddit(
             comments=[FakeComment(id="c1"), FakeComment(id="c2")],
         )
 
-        call_command("reconcile")
+        ingest_batch.call()
 
         self.assertFalse(RawItem.objects.filter(fullname="t1_c1").exists())
         self.assertTrue(RawItem.objects.filter(fullname="t1_c2").exists())
 
-    @patch("ingest.management.commands.reconcile.get_subreddit")
+    @patch("ingest.tasks.get_subreddit")
     def test_evaluation_lookup_is_bounded_by_fetch_size_not_table_size(
         self, mock_get_subreddit
     ):
@@ -125,7 +126,7 @@ class ReconcileCommandTests(TestCase):
         )
 
         with CaptureQueriesContext(connection) as queries:
-            call_command("reconcile")
+            ingest_batch.call()
 
         evaluation_lookup_queries = [
             q for q in queries.captured_queries
@@ -134,6 +135,14 @@ class ReconcileCommandTests(TestCase):
         self.assertEqual(len(evaluation_lookup_queries), 1)
         self.assertIn("t1_c1", evaluation_lookup_queries[0]["sql"])
         self.assertNotIn("t1_old0", evaluation_lookup_queries[0]["sql"])
+
+
+class IngestCommandTests(TestCase):
+    @patch("ingest.management.commands.ingest.ingest_batch")
+    def test_enqueues_ingest_batch(self, mock_ingest_batch):
+        call_command("ingest")
+
+        mock_ingest_batch.enqueue.assert_called_once_with()
 
 
 class TrimToCapTests(TestCase):

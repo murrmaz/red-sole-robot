@@ -8,10 +8,12 @@ _client_lock = threading.Lock()
 
 
 def get_reddit_client():
-    """Process-wide singleton praw.Reddit client, shared by every thread in
-    this process (e.g. stream.py's comment/submission streaming threads)
-    so they share one rate-limiter instead of racing with independent ones.
-    Cross-process coordination is intentionally not attempted; prawcore
+    """Process-wide singleton praw.Reddit client. ingest_batch, prepare_item,
+    and handle_flagged all run on the single `reddit` django_tasks queue (see
+    settings.TASK_QUEUE_REDDIT), processed by exactly one db_worker process,
+    so this singleton is in practice shared by every Reddit-touching call in
+    the app rather than just within one process. Cross-process coordination
+    is intentionally not attempted beyond that queue constraint; prawcore
     reacts to live X-Ratelimit-*/Retry-After headers per-process instead."""
     global _client
     if _client is None:

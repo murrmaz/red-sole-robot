@@ -26,14 +26,15 @@ class OpenAICompatibleBackend:
         self.base_url = (base_url or settings.INFERENCE_BASE_URL).rstrip("/")
         self.model_name = model_name or settings.INFERENCE_MODEL
 
-    def classify(self, text: str) -> InferenceResult:
+    def classify(self, text: str, context: str = "") -> InferenceResult:
+        user_content = f"Conversation context:\n{context}\n\nItem to moderate:\n{text}" if context else text
         response = requests.post(
             f"{self.base_url}/v1/chat/completions",
             json={
                 "model": self.model_name,
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": text},
+                    {"role": "user", "content": user_content},
                 ],
                 "temperature": 0,
             },

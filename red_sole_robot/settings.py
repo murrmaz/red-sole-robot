@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django_tasks',
     'django_tasks_db',
     'ingest',
+    'preparation',
     'evaluate',
     'actions',
     'dashboard',
@@ -100,23 +101,35 @@ DATABASES = {
 
 # Each task group gets its own named queue, backed by the same
 # TASKS['default'] DatabaseBackend, so a db_worker can be scoped to just one
-# group. evaluate_item is AI-inference-bound, handle_flagged is Reddit-API-
-# bound and throttling-prone — keeping them apart means Reddit throttling
-# can't back up evaluation throughput, or vice versa. Dashboard rollups get
-# their own queue too so a metrics backfill can't compete with either.
+# group. evaluate_item is AI-inference-bound and stays on its own queue so
+# Reddit throttling can't back up evaluation throughput. Dashboard rollups
+# get their own queue too so a metrics backfill can't compete with either.
+#
+# ingest_batch, prepare_item, and handle_flagged all talk to Reddit via the
+# single praw.Reddit singleton in ingest/reddit_client.py, and MUST run in
+# exactly one `reddit` worker process. django_tasks_db's db_worker processes
+# tasks strictly one at a time per process (see db_worker.py's run loop), so
+# pinning all three to one queue/process is what actually makes "one shared
+# PRAW instance" true — running a second `reddit` worker process silently
+# breaks that guarantee (each process would build its own independent
+# client), so never scale this queue beyond one process.
+# handle_flagged runs at a higher priority than ingest_batch/prepare_item
+# (django_tasks_db orders ready tasks by priority desc, then run_after asc)
+# so reporting already-flagged content isn't delayed behind a large batch
+# ingest or a slow preparation fetch.
 #
 # Run three worker processes:
 #   manage.py db_worker --queue-name=evaluation
-#   manage.py db_worker --queue-name=actions
+#   manage.py db_worker --queue-name=reddit      # exactly one process — see above
 #   manage.py db_worker --queue-name=dashboard
 TASK_QUEUE_EVALUATION = "evaluation"
-TASK_QUEUE_ACTIONS = "actions"
+TASK_QUEUE_REDDIT = "reddit"
 TASK_QUEUE_DASHBOARD = "dashboard"
 
 TASKS = {
     'default': {
         'BACKEND': 'django_tasks_db.DatabaseBackend',
-        'QUEUES': [TASK_QUEUE_EVALUATION, TASK_QUEUE_ACTIONS, TASK_QUEUE_DASHBOARD],
+        'QUEUES': [TASK_QUEUE_EVALUATION, TASK_QUEUE_REDDIT, TASK_QUEUE_DASHBOARD],
     }
 }
 
@@ -133,16 +146,20 @@ REDDIT_USER_AGENT = env(
 REDDIT_SUBREDDIT = env('REDDIT_SUBREDDIT', default='LouboutinLife')
 
 # Raw item retention window — RawItem is trimmed to the most recent N of
-# each type by `reconcile`, regardless of evaluation status.
+# each type by `ingest_batch`, regardless of evaluation status.
 RETAINED_COMMENT_CAP = env.int('RETAINED_COMMENT_CAP', default=5000)
 RETAINED_POST_CAP = env.int('RETAINED_POST_CAP', default=100)
 
-# How many recent comments/posts `reconcile` fetches from Reddit each run to
-# catch anything the stream missed.
+# How many recent comments/posts `ingest_batch` fetches from Reddit each run.
 RECONCILE_COMMENT_FETCH_LIMIT = env.int(
     'RECONCILE_COMMENT_FETCH_LIMIT', default=1000
 )
 RECONCILE_POST_FETCH_LIMIT = env.int('RECONCILE_POST_FETCH_LIMIT', default=100)
+
+# How many parent-comment levels the preparation stage will walk (and fetch
+# live from Reddit if not already retained) to assemble conversational
+# context before inference.
+PREPARATION_MAX_ANCESTOR_DEPTH = env.int('PREPARATION_MAX_ANCESTOR_DEPTH', default=5)
 
 
 # AI inference backend
