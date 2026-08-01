@@ -23,6 +23,7 @@ class RawItem(models.Model):
     permalink = models.CharField(max_length=500)
     created_utc = models.DateTimeField()
     fetched_at = models.DateTimeField(auto_now_add=True)
+    protect_until = models.DateTimeField(null=True, blank=True, db_index=True)
 
     # comment-only
     body = models.TextField(blank=True)

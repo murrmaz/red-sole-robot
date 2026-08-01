@@ -6,8 +6,11 @@ not at module level) to avoid a circular import -- `ingest.ingestion`
 imports `preparation.tasks`, which imports this module.
 """
 
+from datetime import timedelta
+
 import prawcore
 from django.conf import settings
+from django.utils import timezone
 
 from actions.reddit_actions import TRANSIENT_EXCEPTIONS
 from ingest.models import ItemType, RawItem
@@ -48,6 +51,10 @@ def build_context(raw: RawItem, best_effort: bool = False) -> str:
     (NotFound/Forbidden) -- there's nothing further to retrieve. On a
     transient PRAW error, raises unless best_effort=True, in which case the
     walk stops there and whatever context was assembled so far is returned.
+
+    Every ancestor consulted has its `protect_until` bumped so trimming
+    won't evict it while it's still needed by a pending/retrying
+    evaluation.
     """
     if raw.item_type != ItemType.COMMENT:
         return ""
@@ -67,6 +74,11 @@ def build_context(raw: RawItem, best_effort: bool = False) -> str:
                 if best_effort:
                     break
                 raise
+
+        parent.protect_until = timezone.now() + timedelta(
+            seconds=settings.RAW_ITEM_PROTECTION_TTL_SECONDS
+        )
+        parent.save(update_fields=["protect_until"])
 
         ancestors.append(_text_for(parent))
 

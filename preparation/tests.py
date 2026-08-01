@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 import prawcore
 from django.test import TestCase, override_settings
+from django.utils import timezone as django_timezone
 
 from ingest.models import ItemType, RawItem
 from preparation.context import build_context
@@ -71,6 +72,20 @@ class BuildContextTests(TestCase):
         context = build_context(c2)
 
         self.assertEqual(context, "a post\n\npost body\n---\nfirst reply")
+
+    def test_protects_walked_ancestors_from_trimming(self):
+        post = make_raw_post()
+        c1 = make_raw_comment(fullname="t1_c1", body="first reply", parent_id="t3_root")
+        c2 = make_raw_comment(fullname="t1_c2", body="second reply", parent_id="t1_c1")
+
+        build_context(c2)
+
+        post.refresh_from_db()
+        c1.refresh_from_db()
+        self.assertIsNotNone(post.protect_until)
+        self.assertGreater(post.protect_until, django_timezone.now())
+        self.assertIsNotNone(c1.protect_until)
+        self.assertGreater(c1.protect_until, django_timezone.now())
 
     @patch("preparation.context.get_reddit_client")
     def test_fetches_and_persists_missing_ancestor(self, mock_get_client):

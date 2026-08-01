@@ -161,6 +161,15 @@ RECONCILE_POST_FETCH_LIMIT = env.int('RECONCILE_POST_FETCH_LIMIT', default=100)
 # context before inference.
 PREPARATION_MAX_ANCESTOR_DEPTH = env.int('PREPARATION_MAX_ANCESTOR_DEPTH', default=5)
 
+# How long a RawItem stays protected from trimming after being consulted
+# as an ancestor during context preparation, so it survives long enough
+# for a retried/queued prepare_item to reuse it without re-fetching from
+# Reddit. Refreshed on every touch, so it self-expires only once the
+# ancestor chain is no longer being actively walked.
+RAW_ITEM_PROTECTION_TTL_SECONDS = env.int(
+    'RAW_ITEM_PROTECTION_TTL_SECONDS', default=3600
+)
+
 
 # AI inference backend
 #

@@ -7,6 +7,7 @@ from django.core.management import call_command
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone as django_timezone
 
 import ingest.reddit_client as reddit_client
 from evaluate.models import EvaluationRecord, ItemType as EvalItemType, Verdict
@@ -150,6 +151,40 @@ class TrimToCapTests(TestCase):
         base = 1_700_000_000.0
         for i in range(10):
             save_comment(FakeComment(id=f"c{i}", created_utc=base + i))
+
+        deleted = trim_to_cap(RawItem.objects.filter(item_type=ItemType.COMMENT), 3)
+
+        self.assertEqual(deleted, 7)
+        remaining_fullnames = set(RawItem.objects.values_list("fullname", flat=True))
+        self.assertEqual(remaining_fullnames, {"t1_c7", "t1_c8", "t1_c9"})
+
+    def test_protected_row_survives_past_the_cap(self):
+        base = 1_700_000_000.0
+        for i in range(10):
+            save_comment(FakeComment(id=f"c{i}", created_utc=base + i))
+
+        protected = RawItem.objects.get(fullname="t1_c0")
+        protected.protect_until = django_timezone.now() + django_timezone.timedelta(
+            hours=1
+        )
+        protected.save(update_fields=["protect_until"])
+
+        deleted = trim_to_cap(RawItem.objects.filter(item_type=ItemType.COMMENT), 3)
+
+        self.assertEqual(deleted, 6)
+        remaining_fullnames = set(RawItem.objects.values_list("fullname", flat=True))
+        self.assertEqual(remaining_fullnames, {"t1_c0", "t1_c7", "t1_c8", "t1_c9"})
+
+    def test_expired_protection_does_not_prevent_trimming(self):
+        base = 1_700_000_000.0
+        for i in range(10):
+            save_comment(FakeComment(id=f"c{i}", created_utc=base + i))
+
+        expired = RawItem.objects.get(fullname="t1_c0")
+        expired.protect_until = django_timezone.now() - django_timezone.timedelta(
+            hours=1
+        )
+        expired.save(update_fields=["protect_until"])
 
         deleted = trim_to_cap(RawItem.objects.filter(item_type=ItemType.COMMENT), 3)
 
