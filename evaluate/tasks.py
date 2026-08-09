@@ -6,21 +6,26 @@ from django_tasks import task
 from evaluate.backends import get_inference_backend
 from evaluate.models import EvaluationRecord, ItemType, Verdict
 from ingest.models import RawItem
+from preparation.context import build_context
 
 logger = logging.getLogger(__name__)
 
 
 @task(queue_name=settings.TASK_QUEUE_EVALUATION)
-def evaluate_item(raw_id: int, context: str = "") -> None:
+def evaluate_item(raw_id: int) -> None:
     """Run evaluation on one queued raw item and record the verdict. If the
     verdict is flagged, hands off to `actions.tasks.handle_flagged` —
     evaluation itself has no knowledge of what happens as a result of a
     verdict.
 
-    `context` is the conversational context (parent comments) assembled by
-    `preparation.tasks.prepare_item` -- passed through as a plain argument
-    rather than persisted anywhere, since it's raw content and must not be
-    retained once scored (same rule EvaluationRecord itself follows).
+    The conversational context (parent comments) is rebuilt here, read-only,
+    from RawItem via `build_context(allow_fetch=False, protect=False)` --
+    not received as a task argument -- so raw content never ends up in
+    django_tasks_db's DBTaskResult.args_kwargs (which is persisted
+    indefinitely). `preparation.tasks.prepare_item` already fetched and
+    protected any ancestors that needed it before enqueueing this task; this
+    call is a pure DB read with no PRAW fetch and no protect_until bump,
+    since evaluation is the final consumer with nothing left to wait for.
 
     The raw row is left in place either way (it's no longer deleted here) —
     RawItem now persists as a rolling retention window, trimmed by
@@ -33,6 +38,7 @@ def evaluate_item(raw_id: int, context: str = "") -> None:
     except RawItem.DoesNotExist:
         return
 
+    context = build_context(raw, allow_fetch=False, protect=False)
     text = raw.body if raw.item_type == ItemType.COMMENT else f"{raw.title}\n\n{raw.selftext}"
 
     backend = get_inference_backend()

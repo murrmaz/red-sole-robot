@@ -48,17 +48,20 @@ class EvaluateItemTests(TestCase):
 
     @patch("actions.tasks.handle_flagged")
     @patch("evaluate.tasks.get_inference_backend")
-    def test_context_is_passed_through_to_backend(
-        self, mock_get_backend, mock_handle_flagged
+    @patch("evaluate.tasks.build_context")
+    def test_context_is_rebuilt_from_raw_item_and_passed_to_backend(
+        self, mock_build_context, mock_get_backend, mock_handle_flagged
     ):
         raw = make_raw_comment()
+        mock_build_context.return_value = "parent comment text"
         mock_get_backend.return_value.model_name = "test-model"
         mock_get_backend.return_value.classify.return_value = InferenceResult(
             flagged=False, category="", confidence=0.1, rationale="fine"
         )
 
-        evaluate_item.call(raw.id, context="parent comment text")
+        evaluate_item.call(raw.id)
 
+        mock_build_context.assert_called_once_with(raw, allow_fetch=False, protect=False)
         mock_get_backend.return_value.classify.assert_called_once_with(
             "hello world", context="parent comment text"
         )

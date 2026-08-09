@@ -15,10 +15,11 @@ MAX_RETRY_ATTEMPTS = 5  # 1 initial attempt + 4 retries
 
 @task(queue_name=settings.TASK_QUEUE_REDDIT)
 def prepare_item(raw_id: int, attempt: int = 0) -> None:
-    """Assemble ancestor context for a RawItem, then hand off to
-    evaluate_item. Runs on the shared reddit queue because assembling
-    context may require a live PRAW fetch for ancestors that fell out of
-    RawItem's retention window."""
+    """Fetch and protect a RawItem's ancestor chain, then hand off to
+    evaluate_item, which rebuilds the context itself straight from RawItem.
+    Runs on the shared reddit queue because assembling context may require a
+    live PRAW fetch for ancestors that fell out of RawItem's retention
+    window."""
     from evaluate.tasks import evaluate_item
 
     try:
@@ -27,7 +28,7 @@ def prepare_item(raw_id: int, attempt: int = 0) -> None:
         return
 
     try:
-        context = build_context(raw, best_effort=attempt + 1 >= MAX_RETRY_ATTEMPTS)
+        build_context(raw, best_effort=attempt + 1 >= MAX_RETRY_ATTEMPTS)
     except TRANSIENT_EXCEPTIONS as e:
         delay = retry_delay_seconds(e, attempt)
         logger.warning(
@@ -44,4 +45,4 @@ def prepare_item(raw_id: int, attempt: int = 0) -> None:
         ).enqueue(raw_id, attempt=attempt + 1)
         return
 
-    evaluate_item.enqueue(raw_id, context=context)
+    evaluate_item.enqueue(raw_id)

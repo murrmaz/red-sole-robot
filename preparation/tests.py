@@ -161,13 +161,13 @@ class BuildContextTests(TestCase):
 class PrepareItemTaskTests(TestCase):
     @patch("evaluate.tasks.evaluate_item")
     @patch("preparation.tasks.build_context")
-    def test_enqueues_evaluate_item_with_context(self, mock_build_context, mock_evaluate_item):
+    def test_enqueues_evaluate_item(self, mock_build_context, mock_evaluate_item):
         raw = make_raw_comment()
         mock_build_context.return_value = "some context"
 
         prepare_item.call(raw.id)
 
-        mock_evaluate_item.enqueue.assert_called_once_with(raw.id, context="some context")
+        mock_evaluate_item.enqueue.assert_called_once_with(raw.id)
 
     @patch("preparation.tasks.build_context")
     def test_transient_error_requeues(self, mock_build_context):

@@ -9,7 +9,7 @@ class ItemType(models.TextChoices):
 class RawItem(models.Model):
     """A post or comment's raw content, retained as a rolling window (most
     recent RETAINED_COMMENT_CAP comments / RETAINED_POST_CAP posts, trimmed
-    by `reconcile`) rather than deleted at evaluation time -- so recent
+    by `ingest_batch`) rather than deleted at evaluation time -- so recent
     sibling/parent items remain available as context. Identified by
     `fullname` (PRAW's own t1_/t3_-prefixed id), matching
     evaluate.EvaluationRecord.reddit_fullname.

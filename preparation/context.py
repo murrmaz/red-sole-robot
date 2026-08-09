@@ -40,21 +40,33 @@ def _fetch_ancestor(fullname: str) -> RawItem:
     return raw
 
 
-def build_context(raw: RawItem, best_effort: bool = False) -> str:
+def build_context(
+    raw: RawItem,
+    best_effort: bool = False,
+    allow_fetch: bool = True,
+    protect: bool = True,
+) -> str:
     """Walk a comment's parent_id chain to assemble conversational context,
-    preferring already-retained RawItem rows and falling back to a live
-    PRAW fetch (persisted back into RawItem for reuse) for ancestors that
-    aged out of retention. Posts have no parent chain, so this returns ""
-    for them without any PRAW call.
+    preferring already-retained RawItem rows and falling back (when
+    allow_fetch=True) to a live PRAW fetch, persisted back into RawItem for
+    reuse, for ancestors that aged out of retention. Posts have no parent
+    chain, so this returns "" for them without any PRAW call.
+
+    With allow_fetch=False, the walk never touches PRAW: it stops as soon as
+    the next ancestor isn't already in RawItem, same as hitting a
+    deleted/removed one. This is for callers that must not risk running a
+    PRAW call outside the single-process `reddit` queue.
 
     Stops early (without error) once an ancestor is deleted/removed
     (NotFound/Forbidden) -- there's nothing further to retrieve. On a
     transient PRAW error, raises unless best_effort=True, in which case the
     walk stops there and whatever context was assembled so far is returned.
 
-    Every ancestor consulted has its `protect_until` bumped so trimming
-    won't evict it while it's still needed by a pending/retrying
-    evaluation.
+    With protect=True (the default), every ancestor consulted has its
+    `protect_until` bumped so trimming won't evict it while it's still
+    needed by a pending/retrying evaluation. Callers doing a final,
+    immediate read (nothing left to wait for) should pass protect=False so
+    they don't re-arm that TTL for no reason.
     """
     if raw.item_type != ItemType.COMMENT:
         return ""
@@ -66,6 +78,8 @@ def build_context(raw: RawItem, best_effort: bool = False) -> str:
     while parent_fullname and depth < settings.PREPARATION_MAX_ANCESTOR_DEPTH:
         parent = RawItem.objects.filter(fullname=parent_fullname).first()
         if parent is None:
+            if not allow_fetch:
+                break
             try:
                 parent = _fetch_ancestor(parent_fullname)
             except NOT_FOUND_EXCEPTIONS:
@@ -75,10 +89,11 @@ def build_context(raw: RawItem, best_effort: bool = False) -> str:
                     break
                 raise
 
-        parent.protect_until = timezone.now() + timedelta(
-            seconds=settings.RAW_ITEM_PROTECTION_TTL_SECONDS
-        )
-        parent.save(update_fields=["protect_until"])
+        if protect:
+            parent.protect_until = timezone.now() + timedelta(
+                seconds=settings.RAW_ITEM_PROTECTION_TTL_SECONDS
+            )
+            parent.save(update_fields=["protect_until"])
 
         ancestors.append(_text_for(parent))
 

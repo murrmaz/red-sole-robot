@@ -9,9 +9,9 @@ from dashboard.tasks import rollup_metrics_task, run_rollup
 class Command(BaseCommand):
     help = (
         "Recomputes precomputed hourly/daily MetricBucket rows. Intended to "
-        "run hourly via external cron/systemd timer, same as `ingest "
-        "reconcile`. Use --full --sync once after migrating to backfill "
-        "existing history."
+        "run hourly via external cron/systemd timer -- see README.md for the "
+        "full cron topology. Use --full --sync once after migrating to "
+        "backfill existing history."
     )
 
     def add_arguments(self, parser):
