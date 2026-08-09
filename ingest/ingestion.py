@@ -15,10 +15,11 @@ def _created_utc(reddit_obj):
     return datetime.fromtimestamp(reddit_obj.created_utc, tz=timezone.utc)
 
 
-def save_comment(comment):
+def save_comment(comment, enqueue_prepare=True):
     """Get-or-create a RawItem for a PRAW comment, enqueueing context
-    preparation on first insert. Returns the row (whether newly created or
-    not)."""
+    preparation on first insert (unless enqueue_prepare=False, for callers
+    fetching it purely as context for something else's preparation, not as
+    a new unit of work). Returns the row (whether newly created or not)."""
     raw, created = RawItem.objects.get_or_create(
         fullname=comment.fullname,
         defaults={
@@ -40,14 +41,16 @@ def save_comment(comment):
             subreddit=raw.subreddit,
             permalink=raw.permalink,
         )
-        prepare_item.enqueue(raw.id)
+        if enqueue_prepare:
+            prepare_item.enqueue(raw.id)
     return raw, created
 
 
-def save_post(submission):
+def save_post(submission, enqueue_prepare=True):
     """Get-or-create a RawItem for a PRAW submission, enqueueing context
-    preparation on first insert. Returns the row (whether newly created or
-    not)."""
+    preparation on first insert (unless enqueue_prepare=False, for callers
+    fetching it purely as context for something else's preparation, not as
+    a new unit of work). Returns the row (whether newly created or not)."""
     raw, created = RawItem.objects.get_or_create(
         fullname=submission.fullname,
         defaults={
@@ -69,5 +72,6 @@ def save_post(submission):
             subreddit=raw.subreddit,
             permalink=raw.permalink,
         )
-        prepare_item.enqueue(raw.id)
+        if enqueue_prepare:
+            prepare_item.enqueue(raw.id)
     return raw, created

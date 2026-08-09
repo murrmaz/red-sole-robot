@@ -101,6 +101,26 @@ class BuildContextTests(TestCase):
         self.assertTrue(RawItem.objects.filter(fullname="t1_missing").exists())
         mock_get_client.return_value.comment.assert_called_once_with("missing")
 
+    @patch("preparation.tasks.prepare_item")
+    @patch("preparation.context.get_reddit_client")
+    def test_fetched_ancestor_does_not_enqueue_preparation(
+        self, mock_get_client, mock_prepare_item
+    ):
+        """A re-fetched ancestor (e.g. one that aged out of RawItem's
+        retention window but already has an EvaluationRecord) is fetched
+        purely as context, not as a new unit of work -- enqueueing
+        prepare_item for it would eventually crash evaluate_item on the
+        existing EvaluationRecord's unique reddit_fullname."""
+        make_raw_post()
+        c2 = make_raw_comment(fullname="t1_c2", parent_id="t1_missing")
+        mock_get_client.return_value.comment.return_value = FakeComment(
+            id="missing", body="fetched parent", parent_id="t3_root"
+        )
+
+        build_context(c2)
+
+        mock_prepare_item.enqueue.assert_not_called()
+
     @patch("preparation.context.get_reddit_client")
     def test_does_not_refetch_once_cached(self, mock_get_client):
         make_raw_post()

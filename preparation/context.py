@@ -28,15 +28,17 @@ def _text_for(raw: RawItem) -> str:
 def _fetch_ancestor(fullname: str) -> RawItem:
     """Fetch a single ancestor live from Reddit and persist it through the
     existing save_comment/save_post dedup path, so it's cached in RawItem
-    for any sibling item's future preparation pass."""
+    for any sibling item's future preparation pass. Fetched purely as
+    context for the item already being prepared, not as a new unit of work,
+    so preparation is not enqueued for it."""
     from ingest.ingestion import save_comment, save_post
 
     reddit = get_reddit_client()
     kind, reddit_id = fullname.split("_", 1)
     if kind == "t1":
-        raw, _ = save_comment(reddit.comment(reddit_id))
+        raw, _ = save_comment(reddit.comment(reddit_id), enqueue_prepare=False)
     else:
-        raw, _ = save_post(reddit.submission(reddit_id))
+        raw, _ = save_post(reddit.submission(reddit_id), enqueue_prepare=False)
     return raw
 
 

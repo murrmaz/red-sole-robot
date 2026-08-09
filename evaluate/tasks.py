@@ -30,6 +30,12 @@ def evaluate_item(raw_id: int) -> None:
     The raw row is left in place either way (it's no longer deleted here) —
     RawItem now persists as a rolling retention window, trimmed by
     `ingest_batch`, rather than being deleted at evaluation time.
+
+    Writing the record via get_or_create on reddit_fullname (rather than
+    create) guards against a duplicate evaluation of an already-scored item
+    -- e.g. an ancestor that aged out of RawItem's retention window and was
+    re-fetched for context. If one is already recorded, this is a no-op
+    rather than an IntegrityError, and no second handle_flagged is enqueued.
     """
     from actions.tasks import handle_flagged
 
@@ -48,19 +54,21 @@ def evaluate_item(raw_id: int) -> None:
         logger.exception("Evaluation failed for raw_id=%s", raw_id)
         return
 
-    record = EvaluationRecord.objects.create(
-        item_type=raw.item_type,
+    record, created = EvaluationRecord.objects.get_or_create(
         reddit_fullname=raw.fullname,
-        subreddit=raw.subreddit,
-        author=raw.author,
-        permalink=raw.permalink,
-        content_created_utc=raw.created_utc,
-        verdict=Verdict.FLAGGED if result.flagged else Verdict.CLEAR,
-        category=result.category,
-        confidence=result.confidence,
-        rationale=result.rationale,
-        model_name=backend.model_name,
+        defaults=dict(
+            item_type=raw.item_type,
+            subreddit=raw.subreddit,
+            author=raw.author,
+            permalink=raw.permalink,
+            content_created_utc=raw.created_utc,
+            verdict=Verdict.FLAGGED if result.flagged else Verdict.CLEAR,
+            category=result.category,
+            confidence=result.confidence,
+            rationale=result.rationale,
+            model_name=backend.model_name,
+        ),
     )
 
-    if result.flagged:
+    if created and result.flagged:
         handle_flagged.enqueue(record.id)

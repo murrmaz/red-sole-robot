@@ -93,3 +93,37 @@ class EvaluateItemTests(TestCase):
 
         self.assertFalse(EvaluationRecord.objects.exists())
         self.assertTrue(RawItem.objects.filter(id=raw.id).exists())
+
+    @patch("actions.tasks.handle_flagged")
+    @patch("evaluate.tasks.get_inference_backend")
+    def test_already_scored_fullname_is_a_noop(self, mock_get_backend, mock_handle_flagged):
+        """An ancestor re-fetched for context after aging out of RawItem's
+        retention window can be re-enqueued for evaluation even though it
+        already has an EvaluationRecord. That must not crash with an
+        IntegrityError on the unique reddit_fullname, and must not
+        re-trigger handle_flagged."""
+        existing = EvaluationRecord.objects.create(
+            item_type=ItemType.COMMENT,
+            reddit_fullname="t1_abc123",
+            subreddit="LouboutinLife",
+            author="someuser",
+            permalink="/r/LouboutinLife/comments/abc/xyz/",
+            content_created_utc=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            verdict=Verdict.FLAGGED,
+            category="spam",
+            confidence=0.9,
+            rationale="looks like spam",
+            model_name="test-model",
+        )
+        raw = make_raw_comment()
+        mock_get_backend.return_value.model_name = "test-model"
+        mock_get_backend.return_value.classify.return_value = InferenceResult(
+            flagged=True, category="spam", confidence=0.9, rationale="looks like spam"
+        )
+
+        evaluate_item.call(raw.id)
+
+        self.assertEqual(EvaluationRecord.objects.count(), 1)
+        record = EvaluationRecord.objects.get(reddit_fullname="t1_abc123")
+        self.assertEqual(record.id, existing.id)
+        mock_handle_flagged.enqueue.assert_not_called()
