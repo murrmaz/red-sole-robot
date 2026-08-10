@@ -141,6 +141,25 @@ class RunRollupTests(TestCase):
             MetricBucket.objects.get(granularity="day", metric_key="flagged.comment").count, 1
         )
 
+    def test_incremental_run_does_not_shrink_partially_covered_bucket(self):
+        early = make_evaluation_record(reddit_fullname="t1_a")
+        late = make_evaluation_record(reddit_fullname="t1_b")
+        bucket_hour = datetime(2024, 6, 1, 10, tzinfo=timezone.utc)
+        EvaluationRecord.objects.filter(pk=early.pk).update(processed_at=bucket_hour.replace(minute=5))
+        EvaluationRecord.objects.filter(pk=late.pk).update(processed_at=bucket_hour.replace(minute=45))
+
+        run_rollup()
+        self.assertEqual(
+            MetricBucket.objects.get(granularity="hour", metric_key="processed.total").count, 2
+        )
+
+        # since lands mid-bucket, between the two records' timestamps
+        run_rollup(since=bucket_hour.replace(minute=30))
+
+        self.assertEqual(
+            MetricBucket.objects.get(granularity="hour", metric_key="processed.total").count, 2
+        )
+
 
 class TaskQueueAssignmentTests(TestCase):
     def test_rollup_metrics_task_uses_dashboard_queue(self):
