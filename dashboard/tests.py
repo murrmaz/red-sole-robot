@@ -96,6 +96,26 @@ class MetricsDataViewTests(TestCase):
         ingested = next(ds for ds in data["datasets"] if ds["label"] == "Ingested")
         self.assertEqual(sum(ingested["data"]), 1)
 
+    def test_non_integer_days_is_bad_request(self):
+        user = User.objects.create_user(username="mod", password="pw", is_staff=True)
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("metrics_data"), {"item_type": "comment", "days": "abc"}
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_huge_days_is_clamped_not_500(self):
+        user = User.objects.create_user(username="mod", password="pw", is_staff=True)
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("metrics_data"), {"item_type": "comment", "days": "999999"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+
 
 class BucketItemsViewTests(TestCase):
     def setUp(self):
@@ -118,6 +138,16 @@ class BucketItemsViewTests(TestCase):
 
     def test_missing_params_is_bad_request(self):
         response = self.client.get(reverse("bucket_items"))
+        self.assertEqual(response.status_code, 400)
+
+    def test_naive_bucket_start_is_bad_request(self):
+        response = self.client.get(reverse("bucket_items"), {
+            "item_type": "comment",
+            "metric": "flagged",
+            "granularity": "hour",
+            "bucket_start": "2026-07-01T10:00:00",
+        })
+
         self.assertEqual(response.status_code, 400)
 
 

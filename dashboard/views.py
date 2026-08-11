@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -43,7 +44,17 @@ def metrics_data(request):
     granularity = request.GET.get("granularity", Granularity.HOUR)
     if granularity not in Granularity.values:
         granularity = Granularity.HOUR
-    days = int(request.GET.get("days", 7 if granularity == Granularity.HOUR else 30))
+    days_raw = request.GET.get("days")
+    if days_raw is None:
+        days = 7 if granularity == Granularity.HOUR else 30
+    else:
+        try:
+            days = int(days_raw)
+        except ValueError:
+            return HttpResponseBadRequest("days must be an integer")
+        if days < 1:
+            return HttpResponseBadRequest("days must be positive")
+    days = min(days, settings.METRICS_MAX_DAYS)
     since = timezone.now() - timedelta(days=days)
 
     rows = MetricBucket.objects.filter(
@@ -79,6 +90,8 @@ def bucket_items(request):
     bucket_start = parse_datetime(request.GET.get("bucket_start", ""))
     if bucket_start is None:
         return HttpResponseBadRequest("bucket_start must be an ISO datetime")
+    if timezone.is_naive(bucket_start):
+        return HttpResponseBadRequest("bucket_start must include a UTC offset")
     bucket_end = bucket_start + (timedelta(hours=1) if granularity == Granularity.HOUR else timedelta(days=1))
 
     if metric == "ingested":

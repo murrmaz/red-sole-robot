@@ -161,6 +161,9 @@ RECONCILE_POST_FETCH_LIMIT = env.int('RECONCILE_POST_FETCH_LIMIT', default=100)
 # context before inference.
 PREPARATION_MAX_ANCESTOR_DEPTH = env.int('PREPARATION_MAX_ANCESTOR_DEPTH', default=5)
 
+# Upper bound on the `days` query param accepted by the metrics dashboard.
+METRICS_MAX_DAYS = env.int('METRICS_MAX_DAYS', default=365)
+
 # How long a RawItem stays protected from trimming after being consulted
 # as an ancestor during context preparation, so it survives long enough
 # for a retried/queued prepare_item to reuse it without re-fetching from
