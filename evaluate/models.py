@@ -22,7 +22,7 @@ class EvaluationRecord(models.Model):
     """
 
     item_type = models.CharField(max_length=10, choices=ItemType.choices)
-    reddit_fullname = models.CharField(max_length=20, unique=True, db_index=True)
+    reddit_fullname = models.CharField(max_length=24, unique=True, db_index=True)
     subreddit = models.CharField(max_length=100)
     author = models.CharField(max_length=100, blank=True)
     permalink = models.CharField(max_length=500)

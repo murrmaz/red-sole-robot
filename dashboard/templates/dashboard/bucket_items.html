@@ -46,7 +46,7 @@
                     </td>
                 </tr>
             {% empty %}
-                <tr><td colspan="7">No items in this time period.</td></tr>
+                <tr><td colspan="{% if metric != 'ingested' %}7{% else %}3{% endif %}">No items in this time period.</td></tr>
             {% endfor %}
         </tbody>
     </table>

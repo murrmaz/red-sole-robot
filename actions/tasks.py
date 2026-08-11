@@ -68,4 +68,5 @@ def handle_flagged(evaluation_record_id: int, attempt: int = 0) -> None:
 
     action.status = ActionStatus.SUBMITTED
     action.submitted_at = timezone.now()
-    action.save(update_fields=["status", "submitted_at"])
+    action.error = ""
+    action.save(update_fields=["status", "submitted_at", "error"])

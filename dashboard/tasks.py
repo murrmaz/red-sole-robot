@@ -3,7 +3,6 @@ from datetime import datetime
 from django.conf import settings
 from django.db.models import Count
 from django.db.models.functions import TruncDay, TruncHour
-from django.utils.text import slugify
 from django_tasks import task
 
 from actions.models import ActionRecord
@@ -62,7 +61,7 @@ def _rollup_evaluations(granularity, since):
     cat_qs = qs.filter(verdict=Verdict.FLAGGED).exclude(category="")
     for entry in cat_qs.values("bucket", "category").annotate(n=Count("id")):
         rows.append(MetricBucket(granularity=granularity, bucket_start=entry["bucket"],
-                                  metric_key=f"category.{slugify(entry['category']) or 'uncategorized'}",
+                                  metric_key=f"category.{entry['category'].strip().lower() or 'uncategorized'}",
                                   count=entry["n"]))
     _upsert(rows)
 
