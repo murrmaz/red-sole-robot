@@ -151,10 +151,10 @@ RETAINED_COMMENT_CAP = env.int('RETAINED_COMMENT_CAP', default=5000)
 RETAINED_POST_CAP = env.int('RETAINED_POST_CAP', default=100)
 
 # How many recent comments/posts `ingest_batch` fetches from Reddit each run.
-RECONCILE_COMMENT_FETCH_LIMIT = env.int(
-    'RECONCILE_COMMENT_FETCH_LIMIT', default=1000
+INGEST_COMMENT_FETCH_LIMIT = env.int(
+    'INGEST_COMMENT_FETCH_LIMIT', default=1000
 )
-RECONCILE_POST_FETCH_LIMIT = env.int('RECONCILE_POST_FETCH_LIMIT', default=100)
+INGEST_POST_FETCH_LIMIT = env.int('INGEST_POST_FETCH_LIMIT', default=100)
 
 # How many parent-comment levels the preparation stage will walk (and fetch
 # live from Reddit if not already retained) to assemble conversational

@@ -16,8 +16,8 @@ def ingest_batch() -> None:
     wide client with preparation and actions. Triggered periodically by the
     `ingest` management command via external cron."""
     subreddit = get_subreddit()
-    comments = list(subreddit.comments(limit=settings.RECONCILE_COMMENT_FETCH_LIMIT))
-    submissions = list(subreddit.new(limit=settings.RECONCILE_POST_FETCH_LIMIT))
+    comments = list(subreddit.comments(limit=settings.INGEST_COMMENT_FETCH_LIMIT))
+    submissions = list(subreddit.new(limit=settings.INGEST_POST_FETCH_LIMIT))
 
     # Only check evaluation status for the handful of items just fetched,
     # not the whole (permanent, ever-growing) EvaluationRecord table.
