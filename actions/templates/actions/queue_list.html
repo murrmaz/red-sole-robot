@@ -64,7 +64,7 @@
                     <td>{{ record.evaluation_record.confidence|default_if_none:"—" }}</td>
                     <td>{% if record.status == "submitted" %}Yes{% elif record.status == "failed" %}Failed{% else %}—{% endif %}</td>
                     <td>{{ record.get_review_status_display }}</td>
-                    <td>{{ record.evaluation_record.processed_at }}</td>
+                    <td><time class="local-datetime" datetime="{{ record.evaluation_record.processed_at|date:'c' }}">{{ record.evaluation_record.processed_at }}</time></td>
                     <td><a href="{% url 'actions:record_detail' record.pk %}">View</a></td>
                 </tr>
             {% empty %}

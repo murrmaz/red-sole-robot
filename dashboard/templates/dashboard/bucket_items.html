@@ -3,7 +3,7 @@
 {% block content %}
     <p><a href="{% url 'home' %}">&larr; Back to dashboard</a></p>
     <h1 class="title">
-        {{ metric|capfirst }} {{ item_type }}s — {{ bucket_start }} ({{ granularity }})
+        {{ metric|capfirst }} {{ item_type }}s — <time class="local-datetime" datetime="{{ bucket_start|date:'c' }}">{{ bucket_start }}</time> ({{ granularity }})
     </h1>
 
     <table class="table is-fullwidth is-striped is-hoverable">
@@ -30,7 +30,7 @@
                         <td>{{ record.category }}</td>
                         <td>{{ record.confidence|default_if_none:"—" }}</td>
                     {% endif %}
-                    <td>{% if metric == "ingested" %}{{ record.fetched_at }}{% else %}{{ record.processed_at }}{% endif %}</td>
+                    <td>{% if metric == "ingested" %}<time class="local-datetime" datetime="{{ record.fetched_at|date:'c' }}">{{ record.fetched_at }}</time>{% else %}<time class="local-datetime" datetime="{{ record.processed_at|date:'c' }}">{{ record.processed_at }}</time>{% endif %}</td>
                     <td>
                         {% if raw %}
                             {% if raw.item_type == "post" %}
