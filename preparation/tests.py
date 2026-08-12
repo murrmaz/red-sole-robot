@@ -207,6 +207,17 @@ class PrepareItemTaskTests(TestCase):
         prepare_item.call(999999)
 
     @patch("preparation.tasks.build_context")
+    def test_protects_primary_item_from_trimming(self, mock_build_context):
+        raw = make_raw_comment()
+        mock_build_context.return_value = ""
+
+        prepare_item.call(raw.id)
+
+        raw.refresh_from_db()
+        self.assertIsNotNone(raw.protect_until)
+        self.assertGreater(raw.protect_until, django_timezone.now())
+
+    @patch("preparation.tasks.build_context")
     def test_last_attempt_uses_best_effort(self, mock_build_context):
         raw = make_raw_comment()
         mock_build_context.return_value = ""

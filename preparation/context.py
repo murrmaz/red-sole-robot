@@ -25,6 +25,16 @@ def _text_for(raw: RawItem) -> str:
     return f"{raw.title}\n\n{raw.selftext}"
 
 
+def protect_item(raw: RawItem) -> None:
+    """Bump `protect_until` so `ingest.trimming.trim_to_cap` won't evict this
+    row while it's still needed by a pending/retrying prepare or evaluate
+    task."""
+    raw.protect_until = timezone.now() + timedelta(
+        seconds=settings.RAW_ITEM_PROTECTION_TTL_SECONDS
+    )
+    raw.save(update_fields=["protect_until"])
+
+
 def _fetch_ancestor(fullname: str) -> RawItem:
     """Fetch a single ancestor live from Reddit and persist it through the
     existing save_comment/save_post dedup path, so it's cached in RawItem
@@ -92,10 +102,7 @@ def build_context(
                 raise
 
         if protect:
-            parent.protect_until = timezone.now() + timedelta(
-                seconds=settings.RAW_ITEM_PROTECTION_TTL_SECONDS
-            )
-            parent.save(update_fields=["protect_until"])
+            protect_item(parent)
 
         ancestors.append(_text_for(parent))
 

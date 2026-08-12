@@ -6,7 +6,7 @@ from django_tasks import task
 
 from actions.reddit_actions import TRANSIENT_EXCEPTIONS, retry_delay_seconds
 from ingest.models import RawItem
-from preparation.context import build_context
+from preparation.context import build_context, protect_item
 
 logger = logging.getLogger(__name__)
 
@@ -15,17 +15,19 @@ MAX_RETRY_ATTEMPTS = 5  # 1 initial attempt + 4 retries
 
 @task(queue_name=settings.TASK_QUEUE_REDDIT)
 def prepare_item(raw_id: int, attempt: int = 0) -> None:
-    """Fetch and protect a RawItem's ancestor chain, then hand off to
-    evaluate_item, which rebuilds the context itself straight from RawItem.
-    Runs on the shared reddit queue because assembling context may require a
-    live PRAW fetch for ancestors that fell out of RawItem's retention
-    window."""
+    """Protect the primary RawItem and fetch/protect its ancestor chain, then
+    hand off to evaluate_item, which rebuilds the context itself straight
+    from RawItem. Runs on the shared reddit queue because assembling context
+    may require a live PRAW fetch for ancestors that fell out of RawItem's
+    retention window."""
     from evaluate.tasks import evaluate_item
 
     try:
         raw = RawItem.objects.get(id=raw_id)
     except RawItem.DoesNotExist:
         return
+
+    protect_item(raw)
 
     try:
         build_context(raw, best_effort=attempt + 1 >= MAX_RETRY_ATTEMPTS)

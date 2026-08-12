@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.utils import timezone as django_timezone
 
 from evaluate.backends.base import InferenceResult
 from evaluate.models import EvaluationRecord, Verdict
@@ -83,6 +84,21 @@ class EvaluateItemTests(TestCase):
         self.assertEqual(record.verdict, Verdict.CLEAR)
         mock_handle_flagged.enqueue.assert_not_called()
         self.assertTrue(RawItem.objects.filter(id=raw.id).exists())
+
+    @patch("actions.tasks.handle_flagged")
+    @patch("evaluate.tasks.get_inference_backend")
+    def test_protects_primary_item_from_trimming(self, mock_get_backend, mock_handle_flagged):
+        raw = make_raw_comment()
+        mock_get_backend.return_value.model_name = "test-model"
+        mock_get_backend.return_value.classify.return_value = InferenceResult(
+            flagged=False, category="", confidence=0.1, rationale="fine"
+        )
+
+        evaluate_item.call(raw.id)
+
+        raw.refresh_from_db()
+        self.assertIsNotNone(raw.protect_until)
+        self.assertGreater(raw.protect_until, django_timezone.now())
 
     @patch("evaluate.tasks.get_inference_backend")
     def test_malformed_response_leaves_raw_row_for_retry(self, mock_get_backend):

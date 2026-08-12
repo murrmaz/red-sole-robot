@@ -9,7 +9,7 @@ from actions.reddit_actions import retry_delay_seconds
 from evaluate.backends import get_inference_backend
 from evaluate.models import EvaluationRecord, ItemType, Verdict
 from ingest.models import RawItem
-from preparation.context import build_context
+from preparation.context import build_context, protect_item
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +36,10 @@ def evaluate_item(raw_id: int, attempt: int = 0) -> None:
     django_tasks_db's DBTaskResult.args_kwargs (which is persisted
     indefinitely). `preparation.tasks.prepare_item` already fetched and
     protected any ancestors that needed it before enqueueing this task; this
-    call is a pure DB read with no PRAW fetch and no protect_until bump,
-    since evaluation is the final consumer with nothing left to wait for.
+    call is a pure DB read with no PRAW fetch and no protect_until bump for
+    *ancestors*, since evaluation is the final consumer of ancestor context
+    with nothing left to wait for. The primary row itself is still
+    (re-)protected below, since this task can retry with backoff.
 
     The raw row is left in place either way (it's no longer deleted here) —
     RawItem now persists as a rolling retention window, trimmed by
@@ -60,6 +62,8 @@ def evaluate_item(raw_id: int, attempt: int = 0) -> None:
         raw = RawItem.objects.get(id=raw_id)
     except RawItem.DoesNotExist:
         return
+
+    protect_item(raw)
 
     context = build_context(raw, allow_fetch=False, protect=False)
     text = raw.body if raw.item_type == ItemType.COMMENT else f"{raw.title}\n\n{raw.selftext}"
