@@ -21,7 +21,6 @@
         <div class="navbar-menu">
             <div class="navbar-start">
                 <a class="navbar-item" href="{% url 'home' %}">Dashboard</a>
-                <a class="navbar-item" href="{% url 'actions:queue_list' %}">Review Queue</a>
                 <a class="navbar-item" href="{% url 'actions:stats' %}">Stats</a>
             </div>
             {% if user.is_authenticated %}

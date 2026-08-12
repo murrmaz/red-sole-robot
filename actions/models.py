@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.db import models
 
 from evaluate.models import EvaluationRecord
@@ -12,12 +11,6 @@ class ActionStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     SUBMITTED = "submitted", "Submitted"
     FAILED = "failed", "Failed"
-
-
-class ReviewStatus(models.TextChoices):
-    UNREVIEWED = "unreviewed", "Unreviewed"
-    ACTIONED = "actioned", "Actioned"
-    DISMISSED = "dismissed", "Dismissed"
 
 
 class ActionRecord(models.Model):
@@ -39,14 +32,6 @@ class ActionRecord(models.Model):
     )
     submitted_at = models.DateTimeField(null=True, blank=True)
     error = models.CharField(max_length=500, blank=True)
-
-    review_status = models.CharField(
-        max_length=10, choices=ReviewStatus.choices, default=ReviewStatus.UNREVIEWED
-    )
-    reviewed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
-    )
-    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"ActionRecord({self.evaluation_record.reddit_fullname}, {self.action_type}, {self.status})"
